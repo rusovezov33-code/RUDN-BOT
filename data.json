@@ -1,0 +1,34 @@
+{
+  "pages": [
+    {
+      "title": "🏛 МФЦ / деканат",
+      "text": "Справки, график работы, контакты.\n\n(заполни)",
+      "links": []
+    },
+    {
+      "title": "📅 Расписание",
+      "text": "",
+      "links": [{"title": "Расписание РУДН", "url": "https://rudn.ru"}]
+    },
+    {
+      "title": "📝 Дедлайны и экзамены",
+      "text": ""
+    }
+  ],
+  "subjects": [
+    {
+      "name": "Математический анализ",
+      "teacher": "Иванов И.И.",
+      "semester": 1,
+      "contacts": "ivanov@rudn.ru",
+      "sections": [
+        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
+        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы (БРС)", "text": "", "links": [], "files": []},
+        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
+        {"title": "🔗 Ссылки (Teams, ТУИС)", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+      ]
+    }
+  ]
+}
