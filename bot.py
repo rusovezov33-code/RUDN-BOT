@@ -162,6 +162,7 @@ async def screen_home(event):
     if is_owner(event.from_user.id if hasattr(event, "from_user") and event.from_user else None):
         rows.append([Btn(text="➕ Добавить событие", callback_data="addevent")])
         rows.append([Btn(text="📝 Добавить Д/з", callback_data="addhw")])
+    rows.append([Btn(text="📅 Завтра", callback_data="sched:tomorrow")])
     await show(event, "🎓 <b>РУДН: учебное пространство</b>\nВыбери раздел:", kb(rows))
 
 
@@ -253,7 +254,7 @@ async def screen_page(event, pi: int):
         await show(event, "Страница не найдена.", kb([nav()]))
         return
     if "Расписание" in p.get("title", ""):
-        await screen_schedule_choice(event)
+        await screen_schedule(event, 0)
         return
     text = (
         f"<b>{escape(p.get('title', ''))}</b>\n\n"
@@ -262,15 +263,6 @@ async def screen_page(event, pi: int):
     rows = link_rows(p.get("links", []))
     rows.append(nav())
     await show(event, text, kb(rows))
-
-
-async def screen_schedule_choice(event):
-    rows = [
-        [Btn(text="📅 Сегодня", callback_data="sched:today")],
-        [Btn(text="📅 Завтра", callback_data="sched:tomorrow")],
-        nav(),
-    ]
-    await show(event, "📅 <b>Расписание</b>\nВыбери день:", kb(rows))
 
 
 async def screen_schedule(event, offset_days: int = 0):
@@ -313,11 +305,7 @@ async def screen_schedule(event, offset_days: int = 0):
         for e in today_events:
             lines.append(f"• {escape(e.get('text', ''))}")
 
-    rows = [
-        [Btn(text="📅 Сегодня", callback_data="sched:today")],
-        [Btn(text="📅 Завтра", callback_data="sched:tomorrow")],
-        nav(),
-    ]
+    rows = [nav()]
     await show(event, "\n".join(lines), kb(rows))
 
 
@@ -332,21 +320,37 @@ async def start_add_homework(c: CallbackQuery):
 
 
 @router.message(F.text)
-async def handle_homework_text(m: Message):
+async def handle_text_input(m: Message):
     if not is_owner(m.from_user.id if m.from_user else None):
         return
-    if m.from_user.id not in pending_homework:
-        return
+    user_id = m.from_user.id
     text = (m.text or "").strip()
     if not text:
-        await m.answer("Текст пустой.")
         return
-    pending_homework[m.from_user.id]["text"] = text
-    d = load()
-    subjects = d.get("subjects", [])
-    rows = [[Btn(text=s["name"], callback_data=f"hwsel:s:{i}")] for i, s in enumerate(subjects)]
-    rows.append([Btn(text="❌ Отмена", callback_data="hwsel:cancel")])
-    await m.answer("Выбери предмет:", reply_markup=kb(rows))
+
+    if user_id in pending_events:
+        pending_events[user_id] = text
+        rows = []
+        row = []
+        for day in range(1, 32):
+            row.append(Btn(text=str(day), callback_data=f"evday:{day}"))
+            if len(row) == 7:
+                rows.append(row)
+                row = []
+        if row:
+            rows.append(row)
+        rows.append([Btn(text="❌ Отмена", callback_data="evday:cancel")])
+        await m.answer("Выбери день месяца:", reply_markup=kb(rows))
+        return
+
+    if user_id in pending_homework:
+        pending_homework[user_id]["text"] = text
+        d = load()
+        subjects = d.get("subjects", [])
+        rows = [[Btn(text=s["name"], callback_data=f"hwsel:s:{i}")] for i, s in enumerate(subjects)]
+        rows.append([Btn(text="❌ Отмена", callback_data="hwsel:cancel")])
+        await m.answer("Выбери предмет:", reply_markup=kb(rows))
+        return
 
 
 @router.callback_query(F.data.startswith("hwsel:"))
@@ -457,29 +461,6 @@ async def start_add_event(c: CallbackQuery):
     pending_events[c.from_user.id] = ""
     await c.message.answer("Напиши текст события:")
     await c.answer()
-
-
-@router.message(F.text)
-async def handle_event_text(m: Message):
-    if not is_owner(m.from_user.id if m.from_user else None):
-        return
-    if m.from_user.id not in pending_events:
-        return
-    text = (m.text or "").strip()
-    if not text:
-        return
-    pending_events[m.from_user.id] = text
-    rows = []
-    row = []
-    for day in range(1, 32):
-        row.append(Btn(text=str(day), callback_data=f"evday:{day}"))
-        if len(row) == 7:
-            rows.append(row)
-            row = []
-    if row:
-        rows.append(row)
-    rows.append([Btn(text="❌ Отмена", callback_data="evday:cancel")])
-    await m.answer("Выбери день месяца:", reply_markup=kb(rows))
 
 
 @router.callback_query(F.data.startswith("evday:"))
@@ -594,8 +575,6 @@ async def on_callback(c: CallbackQuery):
                 await screen_section(c, int(si), int(j))
             case ["p", pi]:
                 await screen_page(c, int(pi))
-            case ["sched", "today"]:
-                await screen_schedule(c, 0)
             case ["sched", "tomorrow"]:
                 await screen_schedule(c, 1)
             case ["file", si, j, fi]:
