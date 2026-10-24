@@ -2,32 +2,198 @@
   "pages": [
     {
       "title": "🏛 МФЦ / деканат",
-      "text": "Справки, график работы, контакты.\n\n(заполни)",
+      "text": "Справки, график работы, контакты.\n\n(данные будут дополнены)",
       "links": []
     },
     {
       "title": "📅 Расписание",
-      "text": "",
-      "links": [{"title": "Расписание РУДН", "url": "https://rudn.ru"}]
+      "text": "Динамическое расписание (показывается по текущему дню и неделе).",
+      "links": [{"title": "Официальное расписание РУДН", "url": "https://rudn.ru"}]
     },
     {
       "title": "📝 Дедлайны и экзамены",
-      "text": ""
+      "text": "Дедлайны и экзамены будут добавлены."
     }
   ],
   "subjects": [
     {
-      "name": "Математический анализ",
-      "teacher": "Иванов И.И.",
+      "name": "Русский язык для иностранцев",
+      "teacher": "Не указано",
       "semester": 1,
-      "contacts": "ivanov@rudn.ru",
+      "contacts": "Не указано",
+      "description": "РЯдляИ / РКИ / РЯВАС",
       "sections": [
         {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
         {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы (БРС)", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
         {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки (Teams, ТУИС)", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+      ]
+    },
+    {
+      "name": "Латинский язык",
+      "teacher": "Не указано",
+      "semester": 1,
+      "contacts": "Не указано",
+      "description": "",
+      "sections": [
+        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
+        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
+        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
+        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+      ]
+    },
+    {
+      "name": "Химия",
+      "teacher": "Не указано",
+      "semester": 1,
+      "contacts": "Не указано",
+      "description": "Включая химию биогенных элементов",
+      "sections": [
+        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
+        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
+        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
+        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+      ]
+    },
+    {
+      "name": "Медицинская информатика",
+      "teacher": "Не указано",
+      "semester": 1,
+      "contacts": "Не указано",
+      "description": "",
+      "sections": [
+        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
+        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
+        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
+        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+      ]
+    },
+    {
+      "name": "Медицинская элементология",
+      "teacher": "Не указано",
+      "semester": 1,
+      "contacts": "Не указано",
+      "description": "Биоэлементы в медицине",
+      "sections": [
+        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
+        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
+        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
+        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+      ]
+    },
+    {
+      "name": "Основы российской государственности",
+      "teacher": "Не указано",
+      "semester": 1,
+      "contacts": "Не указано",
+      "description": "",
+      "sections": [
+        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
+        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
+        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
+        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+      ]
+    },
+    {
+      "name": "Введение в специальность",
+      "teacher": "Не указано",
+      "semester": 1,
+      "contacts": "Не указано",
+      "description": "Ознакомительная практика",
+      "sections": [
+        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
+        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
+        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
+        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+      ]
+    },
+    {
+      "name": "Математика",
+      "teacher": "Не указано",
+      "semester": 1,
+      "contacts": "Не указано",
+      "description": "",
+      "sections": [
+        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
+        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
+        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
+        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+      ]
+    },
+    {
+      "name": "Физика",
+      "teacher": "Не указано",
+      "semester": 1,
+      "contacts": "Не указано",
+      "description": "",
+      "sections": [
+        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
+        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
+        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
+        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+      ]
+    },
+    {
+      "name": "Основы военной подготовки",
+      "teacher": "Не указано",
+      "semester": 1,
+      "contacts": "Не указано",
+      "description": "Безопасность жизнедеятельности",
+      "sections": [
+        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
+        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
+        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
+        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+      ]
+    },
+    {
+      "name": "Физическая культура",
+      "teacher": "Не указано",
+      "semester": 1,
+      "contacts": "Не указано",
+      "description": "",
+      "sections": [
+        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
+        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
+        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
+        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+      ]
+    },
+    {
+      "name": "Экономика",
+      "teacher": "Не указано",
+      "semester": 1,
+      "contacts": "Не указано",
+      "description": "",
+      "sections": [
+        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
+        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
+        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
+        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
+        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
+        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
       ]
     }
   ]
