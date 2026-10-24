@@ -26,6 +26,7 @@ DATA_FILE = Path(__file__).with_name("data.json")
 router = Router()
 pending_uploads: dict[int, dict[str, Any]] = {}
 pending_events: dict[int, str] = {}
+pending_homework: dict[int, dict[str, Any]] = {}
 
 SCHEDULE = {
     "ПН": [
@@ -63,16 +64,17 @@ SCHEDULE = {
 }
 
 DAY_MAP = {0: "ПН", 1: "ВТ", 2: "СР", 3: "ЧТ", 4: "ПТ", 5: "СБ", 6: "ВС"}
+DAY_NAMES = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"]
 
 
 def load() -> dict:
     try:
         data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-        if "events" not in data:
-            data["events"] = []
+        data.setdefault("events", [])
+        data.setdefault("homework", [])
         return data
     except Exception:
-        return {"pages": [], "subjects": [], "events": []}
+        return {"pages": [], "subjects": [], "events": [], "homework": []}
 
 
 def save(data: dict) -> None:
@@ -107,6 +109,39 @@ def get_moscow_now() -> datetime:
     return datetime.utcnow() + timedelta(hours=3)
 
 
+def get_subject_days(subject_name: str) -> set[str]:
+    days = set()
+    for day, lessons in SCHEDULE.items():
+        for _, subj, _, week in lessons:
+            if subject_name.lower() in subj.lower() or subj.lower() in subject_name.lower():
+                days.add(day)
+    return days
+
+
+def get_possible_dates_for_subject(subject_name: str) -> list[int]:
+    now = get_moscow_now()
+    year, month = now.year, now.month
+    subject_days = get_subject_days(subject_name)
+    if not subject_days:
+        return []
+    possible = []
+    for day in range(1, 32):
+        try:
+            dt = datetime(year, month, day)
+        except ValueError:
+            continue
+        weekday_name = DAY_NAMES[dt.weekday()]
+        if weekday_name not in subject_days:
+            continue
+        week_num = dt.isocalendar()[1]
+        week_type = "lower" if week_num % 2 == 0 else "upper"
+        for _, subj, _, w in SCHEDULE.get(weekday_name, []):
+            if subject_name.lower() in subj.lower() and w in ("both", week_type):
+                possible.append(day)
+                break
+    return sorted(set(possible))
+
+
 async def show(event, text: str, markup: InlineKeyboardMarkup):
     if isinstance(event, CallbackQuery):
         try:
@@ -126,6 +161,7 @@ async def screen_home(event):
     rows += [pages[i : i + 2] for i in range(0, len(pages), 2)]
     if is_owner(event.from_user.id if hasattr(event, "from_user") and event.from_user else None):
         rows.append([Btn(text="➕ Добавить событие", callback_data="addevent")])
+        rows.append([Btn(text="📝 Добавить Д/з", callback_data="addhw")])
     await show(event, "🎓 <b>РУДН: учебное пространство</b>\nВыбери раздел:", kb(rows))
 
 
@@ -155,6 +191,8 @@ async def screen_subject(event, si: int):
     if s.get("description"):
         lines.append(f"\n{escape(s['description'])}")
     rows = [[Btn(text=sec["title"], callback_data=f"s:{si}:{j}")] for j, sec in enumerate(s.get("sections", []))]
+    if not any("Д/з" in sec.get("title", "") or "д/з" in sec.get("title", "").lower() for sec in s.get("sections", [])):
+        rows.append([Btn(text="📝 Д/з", callback_data=f"hwview:{si}")])
     rows.append(nav("subs"))
     await show(event, "\n".join(lines), kb(rows))
 
@@ -184,6 +222,29 @@ async def screen_section(event, si: int, j: int):
     await show(event, text, kb(rows))
 
 
+async def screen_homework(event, si: int):
+    d = load()
+    try:
+        subject = d["subjects"][si]
+    except (IndexError, KeyError):
+        await show(event, "Предмет не найден.", kb([nav()]))
+        return
+    now = get_moscow_now()
+    today = now.day
+    hws = [h for h in d.get("homework", []) if h.get("subject_idx") == si and h.get("day", 0) >= today and not h.get("done")]
+    lines = [f"📝 <b>Д/з по предмету: {escape(subject['name'])}</b>\n"]
+    if not hws:
+        lines.append("Актуальных заданий нет.")
+    else:
+        for h in hws:
+            lines.append(f"• До {h['day']} числа: {escape(h.get('text', ''))}")
+    rows = []
+    for h in hws:
+        rows.append([Btn(text=f"✅ Выполнено: {h.get('text', '')[:30]}...", callback_data=f"hwdone:{h.get('id', 0)}")])
+    rows.append(nav(f"s:{si}"))
+    await show(event, "\n".join(lines), kb(rows))
+
+
 async def screen_page(event, pi: int):
     d = load()
     try:
@@ -192,7 +253,7 @@ async def screen_page(event, pi: int):
         await show(event, "Страница не найдена.", kb([nav()]))
         return
     if "Расписание" in p.get("title", ""):
-        await screen_schedule(event)
+        await screen_schedule_choice(event)
         return
     text = (
         f"<b>{escape(p.get('title', ''))}</b>\n\n"
@@ -203,35 +264,189 @@ async def screen_page(event, pi: int):
     await show(event, text, kb(rows))
 
 
-async def screen_schedule(event):
-    now = get_moscow_now()
+async def screen_schedule_choice(event):
+    rows = [
+        [Btn(text="📅 Сегодня", callback_data="sched:today")],
+        [Btn(text="📅 Завтра", callback_data="sched:tomorrow")],
+        nav(),
+    ]
+    await show(event, "📅 <b>Расписание</b>\nВыбери день:", kb(rows))
+
+
+async def screen_schedule(event, offset_days: int = 0):
+    now = get_moscow_now() + timedelta(days=offset_days)
     weekday = now.weekday()
     day_code = DAY_MAP.get(weekday, "ПН")
     week_type = get_current_week_type()
     week_label = "нижняя" if week_type == "lower" else "верхняя"
-    today_day = now.day
+    target_day = now.day
+    label = "сегодня" if offset_days == 0 else "завтра"
 
     lessons = SCHEDULE.get(day_code, [])
     filtered = [l for l in lessons if l[3] in ("both", week_type)]
 
-    lines = [f"📅 <b>Расписание на сегодня ({day_code}, {week_label} неделя)</b>\n"]
+    lines = [f"📅 <b>Расписание на {label} ({day_code}, {week_label} неделя)</b>\n"]
     if not filtered:
-        lines.append("Сегодня занятий нет или выходной.")
+        lines.append("Занятий нет или выходной.")
     else:
+        d = load()
+        subjects = d.get("subjects", [])
         for time, subject, place, _ in filtered:
             lines.append(f"• {time} — {subject}")
             if place:
                 lines.append(f"  📍 {place}")
+            for h in d.get("homework", []):
+                if h.get("done"):
+                    continue
+                if h.get("day") != target_day:
+                    continue
+                si = h.get("subject_idx")
+                if si is not None and 0 <= si < len(subjects):
+                    subj_name = subjects[si].get("name", "")
+                    if subject.lower() in subj_name.lower() or subj_name.lower() in subject.lower():
+                        lines.append(f"  📝 Д/з: {escape(h.get('text', ''))}")
 
     d = load()
-    today_events = [e for e in d.get("events", []) if e.get("day") == today_day]
+    today_events = [e for e in d.get("events", []) if e.get("day") == target_day]
     if today_events:
-        lines.append("\n🔔 <b>Напоминания на сегодня:</b>")
+        lines.append("\n🔔 <b>Напоминания:</b>")
         for e in today_events:
             lines.append(f"• {escape(e.get('text', ''))}")
 
-    rows = [nav()]
+    rows = [
+        [Btn(text="📅 Сегодня", callback_data="sched:today")],
+        [Btn(text="📅 Завтра", callback_data="sched:tomorrow")],
+        nav(),
+    ]
     await show(event, "\n".join(lines), kb(rows))
+
+
+@router.callback_query(F.data == "addhw")
+async def start_add_homework(c: CallbackQuery):
+    if not is_owner(c.from_user.id if c.from_user else None):
+        await c.answer("Нет доступа", show_alert=True)
+        return
+    pending_homework[c.from_user.id] = {}
+    await c.message.answer("Напиши текст домашнего задания:")
+    await c.answer()
+
+
+@router.message(F.text)
+async def handle_homework_text(m: Message):
+    if not is_owner(m.from_user.id if m.from_user else None):
+        return
+    if m.from_user.id not in pending_homework:
+        return
+    text = (m.text or "").strip()
+    if not text:
+        await m.answer("Текст пустой.")
+        return
+    pending_homework[m.from_user.id]["text"] = text
+    d = load()
+    subjects = d.get("subjects", [])
+    rows = [[Btn(text=s["name"], callback_data=f"hwsel:s:{i}")] for i, s in enumerate(subjects)]
+    rows.append([Btn(text="❌ Отмена", callback_data="hwsel:cancel")])
+    await m.answer("Выбери предмет:", reply_markup=kb(rows))
+
+
+@router.callback_query(F.data.startswith("hwsel:"))
+async def handle_hw_selection(c: CallbackQuery):
+    if not is_owner(c.from_user.id if c.from_user else None):
+        await c.answer("Нет доступа", show_alert=True)
+        return
+    user_id = c.from_user.id
+    if user_id not in pending_homework:
+        await c.answer("Сессия истекла.", show_alert=True)
+        return
+    parts = c.data.split(":")
+    if parts[1] == "cancel":
+        pending_homework.pop(user_id, None)
+        await c.message.edit_text("Отменено.")
+        await c.answer()
+        return
+    if parts[1] == "s":
+        si = int(parts[2])
+        pending_homework[user_id]["si"] = si
+        d = load()
+        subject_name = d["subjects"][si]["name"]
+        dates = get_possible_dates_for_subject(subject_name)
+        if not dates:
+            await c.message.edit_text("Не нашёл дней с этим предметом в расписании.")
+            pending_homework.pop(user_id, None)
+            await c.answer()
+            return
+        rows = []
+        row = []
+        for day in dates:
+            row.append(Btn(text=str(day), callback_data=f"hwday:{day}"))
+            if len(row) == 5:
+                rows.append(row)
+                row = []
+        if row:
+            rows.append(row)
+        rows.append([Btn(text="❌ Отмена", callback_data="hwsel:cancel")])
+        await c.message.edit_text(
+            f"Предмет: <b>{escape(subject_name)}</b>\nВыбери день (только когда есть пары):",
+            reply_markup=kb(rows),
+            parse_mode=ParseMode.HTML,
+        )
+        await c.answer()
+        return
+    await c.answer()
+
+
+@router.callback_query(F.data.startswith("hwday:"))
+async def handle_hw_day(c: CallbackQuery):
+    if not is_owner(c.from_user.id if c.from_user else None):
+        await c.answer("Нет доступа", show_alert=True)
+        return
+    user_id = c.from_user.id
+    if user_id not in pending_homework:
+        await c.answer("Сессия истекла.", show_alert=True)
+        return
+    day = int(c.data.split(":")[1])
+    info = pending_homework.pop(user_id)
+    d = load()
+    hw_id = len(d.get("homework", []))
+    d.setdefault("homework", []).append({
+        "id": hw_id,
+        "subject_idx": info.get("si"),
+        "text": info.get("text"),
+        "day": day,
+        "done": False,
+        "created": get_moscow_now().isoformat(),
+    })
+    save(d)
+    await c.message.edit_text(f"✅ Д/з добавлено до {day} числа:\n{escape(info.get('text', ''))}", parse_mode=ParseMode.HTML)
+    await c.answer()
+
+
+@router.callback_query(F.data.startswith("hwdone:"))
+async def mark_homework_done(c: CallbackQuery):
+    if not is_owner(c.from_user.id if c.from_user else None):
+        await c.answer("Нет доступа", show_alert=True)
+        return
+    hw_id = int(c.data.split(":")[1])
+    d = load()
+    for h in d.get("homework", []):
+        if h.get("id") == hw_id:
+            h["done"] = True
+            break
+    save(d)
+    await c.answer("Отмечено как выполненное")
+    si = None
+    for h in d.get("homework", []):
+        if h.get("id") == hw_id:
+            si = h.get("subject_idx")
+            break
+    if si is not None:
+        await screen_homework(c, si)
+
+
+@router.callback_query(F.data.startswith("hwview:"))
+async def view_homework(c: CallbackQuery):
+    si = int(c.data.split(":")[1])
+    await screen_homework(c, si)
 
 
 @router.callback_query(F.data == "addevent")
@@ -240,7 +455,7 @@ async def start_add_event(c: CallbackQuery):
         await c.answer("Нет доступа", show_alert=True)
         return
     pending_events[c.from_user.id] = ""
-    await c.message.answer("Напиши текст события (например: Контрольная по химии или Доп. занятие в Teams):")
+    await c.message.answer("Напиши текст события:")
     await c.answer()
 
 
@@ -252,10 +467,8 @@ async def handle_event_text(m: Message):
         return
     text = (m.text or "").strip()
     if not text:
-        await m.answer("Текст пустой. Напиши событие ещё раз.")
         return
     pending_events[m.from_user.id] = text
-
     rows = []
     row = []
     for day in range(1, 32):
@@ -278,21 +491,17 @@ async def handle_event_day(c: CallbackQuery):
     if user_id not in pending_events or not pending_events[user_id]:
         await c.answer("Сессия истекла.", show_alert=True)
         return
-
     if c.data == "evday:cancel":
         pending_events.pop(user_id, None)
-        await c.message.edit_text("Добавление события отменено.")
+        await c.message.edit_text("Отменено.")
         await c.answer()
         return
-
     day = int(c.data.split(":")[1])
     text = pending_events.pop(user_id)
-
     d = load()
     d.setdefault("events", []).append({"day": day, "text": text, "created": get_moscow_now().isoformat()})
     save(d)
-
-    await c.message.edit_text(f"✅ Событие добавлено на <b>{day}</b> число:\n{escape(text)}", parse_mode=ParseMode.HTML)
+    await c.message.edit_text(f"✅ Событие на {day} число:\n{escape(text)}", parse_mode=ParseMode.HTML)
     await c.answer()
 
 
@@ -312,11 +521,7 @@ async def handle_document(m: Message):
         return
     rows = [[Btn(text=s["name"], callback_data=f"addsel:s:{i}")] for i, s in enumerate(subjects)]
     rows.append([Btn(text="❌ Отмена", callback_data="addsel:cancel")])
-    await m.answer(
-        f"📎 Файл <b>{escape(file_name)}</b> получен.\nВыбери предмет:",
-        reply_markup=kb(rows),
-        parse_mode=ParseMode.HTML,
-    )
+    await m.answer(f"📎 Файл <b>{escape(file_name)}</b> получен.\nВыбери предмет:", reply_markup=kb(rows), parse_mode=ParseMode.HTML)
 
 
 @router.callback_query(F.data.startswith("addsel:"))
@@ -326,31 +531,23 @@ async def handle_add_selection(c: CallbackQuery):
         return
     user_id = c.from_user.id
     if user_id not in pending_uploads:
-        await c.answer("Сессия истекла. Отправь файл заново.", show_alert=True)
+        await c.answer("Сессия истекла.", show_alert=True)
         return
     parts = c.data.split(":")
     if parts[1] == "cancel":
         pending_uploads.pop(user_id, None)
-        await c.message.edit_text("Добавление отменено.")
+        await c.message.edit_text("Отменено.")
         await c.answer()
         return
     if parts[1] == "s":
         si = int(parts[2])
-        d = load()
-        try:
-            subject = d["subjects"][si]
-        except (IndexError, KeyError):
-            await c.answer("Предмет не найден", show_alert=True)
-            return
         pending_uploads[user_id]["si"] = si
+        d = load()
+        subject = d["subjects"][si]
         sections = subject.get("sections", [])
         rows = [[Btn(text=sec["title"], callback_data=f"addsel:sec:{si}:{j}")] for j, sec in enumerate(sections)]
         rows.append([Btn(text="❌ Отмена", callback_data="addsel:cancel")])
-        await c.message.edit_text(
-            f"Предмет: <b>{escape(subject['name'])}</b>\nВыбери раздел:",
-            reply_markup=kb(rows),
-            parse_mode=ParseMode.HTML,
-        )
+        await c.message.edit_text(f"Предмет: <b>{escape(subject['name'])}</b>\nВыбери раздел:", reply_markup=kb(rows), parse_mode=ParseMode.HTML)
         await c.answer()
         return
     if parts[1] == "sec":
@@ -360,16 +557,11 @@ async def handle_add_selection(c: CallbackQuery):
         d = load()
         try:
             section = d["subjects"][si]["sections"][j]
-            if "files" not in section:
-                section["files"] = []
-            section["files"].append({"file_id": info["file_id"], "name": info["file_name"]})
+            section.setdefault("files", []).append({"file_id": info["file_id"], "name": info["file_name"]})
             save(d)
-            await c.message.edit_text(
-                f"✅ Файл <b>{escape(info['file_name'])}</b> добавлен.",
-                parse_mode=ParseMode.HTML,
-            )
-        except (IndexError, KeyError):
-            await c.message.edit_text("Ошибка при сохранении.")
+            await c.message.edit_text(f"✅ Файл добавлен: <b>{escape(info['file_name'])}</b>", parse_mode=ParseMode.HTML)
+        except Exception:
+            await c.message.edit_text("Ошибка.")
         await c.answer()
         return
     await c.answer()
@@ -387,7 +579,7 @@ async def cmd_start(m: Message):
 
 @router.callback_query()
 async def on_callback(c: CallbackQuery):
-    if not c.data or c.data.startswith(("addsel:", "evday:")) or c.data == "addevent":
+    if not c.data or c.data.startswith(("addsel:", "evday:", "hwsel:", "hwday:", "hwdone:", "hwview:")) or c.data in ("addevent", "addhw"):
         return
     parts = c.data.split(":")
     try:
@@ -402,6 +594,10 @@ async def on_callback(c: CallbackQuery):
                 await screen_section(c, int(si), int(j))
             case ["p", pi]:
                 await screen_page(c, int(pi))
+            case ["sched", "today"]:
+                await screen_schedule(c, 0)
+            case ["sched", "tomorrow"]:
+                await screen_schedule(c, 1)
             case ["file", si, j, fi]:
                 try:
                     files = load()["subjects"][int(si)]["sections"][int(j)].get("files", [])
@@ -409,22 +605,20 @@ async def on_callback(c: CallbackQuery):
                     fid = f["file_id"] if isinstance(f, dict) else f
                     await c.message.answer_document(fid)
                     await c.answer()
-                except (IndexError, KeyError, ValueError):
-                    await c.answer("Файл не найден", show_alert=True)
                 except Exception:
-                    await c.answer("Не удалось отправить файл", show_alert=True)
+                    await c.answer("Не удалось отправить", show_alert=True)
             case _:
-                await c.answer("Меню устарело, открываю заново", show_alert=True)
+                await c.answer("Меню устарело", show_alert=True)
                 await screen_home(c)
-    except (IndexError, KeyError, ValueError):
-        await c.answer("Меню устарело, открываю заново", show_alert=True)
+    except Exception:
+        await c.answer("Ошибка", show_alert=True)
         await screen_home(c)
 
 
 async def main():
     logging.basicConfig(level=logging.INFO)
     if not TOKEN:
-        raise SystemExit("Задай BOT_TOKEN в переменных окружения")
+        raise SystemExit("Задай BOT_TOKEN")
     bot = Bot(TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
     dp.include_router(router)
