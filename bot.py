@@ -24,8 +24,8 @@ OWNER_ID = int(os.getenv("OWNER_ID", "0")) or None
 DATA_FILE = Path(__file__).with_name("data.json")
 
 router = Router()
-
 pending_uploads: dict[int, dict[str, Any]] = {}
+pending_events: dict[int, str] = {}
 
 SCHEDULE = {
     "ПН": [
@@ -67,9 +67,12 @@ DAY_MAP = {0: "ПН", 1: "ВТ", 2: "СР", 3: "ЧТ", 4: "ПТ", 5: "СБ", 6: 
 
 def load() -> dict:
     try:
-        return json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        if "events" not in data:
+            data["events"] = []
+        return data
     except Exception:
-        return {"pages": [], "subjects": []}
+        return {"pages": [], "subjects": [], "events": []}
 
 
 def save(data: dict) -> None:
@@ -100,6 +103,10 @@ def get_current_week_type() -> str:
     return "lower"
 
 
+def get_moscow_now() -> datetime:
+    return datetime.utcnow() + timedelta(hours=3)
+
+
 async def show(event, text: str, markup: InlineKeyboardMarkup):
     if isinstance(event, CallbackQuery):
         try:
@@ -117,6 +124,8 @@ async def screen_home(event):
     rows = [[Btn(text="📚 Предметы", callback_data="subs")]]
     pages = [Btn(text=p["title"], callback_data=f"p:{i}") for i, p in enumerate(d.get("pages", []))]
     rows += [pages[i : i + 2] for i in range(0, len(pages), 2)]
+    if is_owner(event.from_user.id if hasattr(event, "from_user") and event.from_user else None):
+        rows.append([Btn(text="➕ Добавить событие", callback_data="addevent")])
     await show(event, "🎓 <b>РУДН: учебное пространство</b>\nВыбери раздел:", kb(rows))
 
 
@@ -166,8 +175,11 @@ async def screen_section(event, si: int, j: int):
         + (body if has_any else "Пока ничего нет.")
     )
     rows = link_rows(sec.get("links", []))
-    if sec.get("files"):
-        rows.append([Btn(text=f"📎 Получить файлы ({len(sec['files'])})", callback_data=f"f:{si}:{j}")])
+    files = sec.get("files", [])
+    for fi, f in enumerate(files):
+        name = f.get("name", "файл") if isinstance(f, dict) else "файл"
+        btn_name = name if len(name) <= 40 else name[:37] + "..."
+        rows.append([Btn(text=f"📄 {btn_name}", callback_data=f"file:{si}:{j}:{fi}")])
     rows.append(nav(f"s:{si}"))
     await show(event, text, kb(rows))
 
@@ -192,14 +204,16 @@ async def screen_page(event, pi: int):
 
 
 async def screen_schedule(event):
-    now = datetime.now()
-    moscow_now = now + timedelta(hours=3)
-    weekday = moscow_now.weekday()
+    now = get_moscow_now()
+    weekday = now.weekday()
     day_code = DAY_MAP.get(weekday, "ПН")
     week_type = get_current_week_type()
     week_label = "нижняя" if week_type == "lower" else "верхняя"
+    today_day = now.day
+
     lessons = SCHEDULE.get(day_code, [])
     filtered = [l for l in lessons if l[3] in ("both", week_type)]
+
     lines = [f"📅 <b>Расписание на сегодня ({day_code}, {week_label} неделя)</b>\n"]
     if not filtered:
         lines.append("Сегодня занятий нет или выходной.")
@@ -208,8 +222,78 @@ async def screen_schedule(event):
             lines.append(f"• {time} — {subject}")
             if place:
                 lines.append(f"  📍 {place}")
+
+    d = load()
+    today_events = [e for e in d.get("events", []) if e.get("day") == today_day]
+    if today_events:
+        lines.append("\n🔔 <b>Напоминания на сегодня:</b>")
+        for e in today_events:
+            lines.append(f"• {escape(e.get('text', ''))}")
+
     rows = [nav()]
     await show(event, "\n".join(lines), kb(rows))
+
+
+@router.callback_query(F.data == "addevent")
+async def start_add_event(c: CallbackQuery):
+    if not is_owner(c.from_user.id if c.from_user else None):
+        await c.answer("Нет доступа", show_alert=True)
+        return
+    pending_events[c.from_user.id] = ""
+    await c.message.answer("Напиши текст события (например: Контрольная по химии или Доп. занятие в Teams):")
+    await c.answer()
+
+
+@router.message(F.text)
+async def handle_event_text(m: Message):
+    if not is_owner(m.from_user.id if m.from_user else None):
+        return
+    if m.from_user.id not in pending_events:
+        return
+    text = (m.text or "").strip()
+    if not text:
+        await m.answer("Текст пустой. Напиши событие ещё раз.")
+        return
+    pending_events[m.from_user.id] = text
+
+    rows = []
+    row = []
+    for day in range(1, 32):
+        row.append(Btn(text=str(day), callback_data=f"evday:{day}"))
+        if len(row) == 7:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([Btn(text="❌ Отмена", callback_data="evday:cancel")])
+    await m.answer("Выбери день месяца:", reply_markup=kb(rows))
+
+
+@router.callback_query(F.data.startswith("evday:"))
+async def handle_event_day(c: CallbackQuery):
+    if not is_owner(c.from_user.id if c.from_user else None):
+        await c.answer("Нет доступа", show_alert=True)
+        return
+    user_id = c.from_user.id
+    if user_id not in pending_events or not pending_events[user_id]:
+        await c.answer("Сессия истекла.", show_alert=True)
+        return
+
+    if c.data == "evday:cancel":
+        pending_events.pop(user_id, None)
+        await c.message.edit_text("Добавление события отменено.")
+        await c.answer()
+        return
+
+    day = int(c.data.split(":")[1])
+    text = pending_events.pop(user_id)
+
+    d = load()
+    d.setdefault("events", []).append({"day": day, "text": text, "created": get_moscow_now().isoformat()})
+    save(d)
+
+    await c.message.edit_text(f"✅ Событие добавлено на <b>{day}</b> число:\n{escape(text)}", parse_mode=ParseMode.HTML)
+    await c.answer()
 
 
 @router.message(F.document)
@@ -303,7 +387,7 @@ async def cmd_start(m: Message):
 
 @router.callback_query()
 async def on_callback(c: CallbackQuery):
-    if not c.data or c.data.startswith("addsel:"):
+    if not c.data or c.data.startswith(("addsel:", "evday:")) or c.data == "addevent":
         return
     parts = c.data.split(":")
     try:
@@ -318,18 +402,17 @@ async def on_callback(c: CallbackQuery):
                 await screen_section(c, int(si), int(j))
             case ["p", pi]:
                 await screen_page(c, int(pi))
-            case ["f", si, j]:
-                files = load()["subjects"][int(si)]["sections"][int(j)].get("files", [])
-                if not files:
-                    await c.answer("Файлов нет", show_alert=True)
-                    return
-                for f in files:
+            case ["file", si, j, fi]:
+                try:
+                    files = load()["subjects"][int(si)]["sections"][int(j)].get("files", [])
+                    f = files[int(fi)]
                     fid = f["file_id"] if isinstance(f, dict) else f
-                    try:
-                        await c.message.answer_document(fid)
-                    except Exception:
-                        await c.message.answer("Не удалось отправить файл")
-                await c.answer("Отправлено")
+                    await c.message.answer_document(fid)
+                    await c.answer()
+                except (IndexError, KeyError, ValueError):
+                    await c.answer("Файл не найден", show_alert=True)
+                except Exception:
+                    await c.answer("Не удалось отправить файл", show_alert=True)
             case _:
                 await c.answer("Меню устарело, открываю заново", show_alert=True)
                 await screen_home(c)
