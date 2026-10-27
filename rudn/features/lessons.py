@@ -16,6 +16,7 @@ from aiogram import F, Router
 from aiogram.types import Message
 
 from rudn import lessons as content
+from rudn import lessons_plan as planner
 from rudn.core import pending
 from rudn.core import timeutil as tu
 from rudn.core.registry import Feature, MenuButton
@@ -178,10 +179,228 @@ async def screen_list(ctx: Ctx, show_all: bool = False, notice: str | None = Non
         lines += ["", "🎉 Все уроки усвоены! Их можно повторить — «👁 Показать усвоенные»."]
     if learned:
         if show_all:
-            rows.append([b("🙈 Скрыть усвоенные", "ls")])
+            rows.append([b("🙈 Скрыть усвоенные", "ls:A")])
         else:
             rows.append([b(f"👁 Показать усвоенные ({len(learned)})", "ls:l:a")])
+    rows.append([b("📅 Сегодня", "ls"), b("🗓 План по дням", "ls:P")])
+    rows.append(nav("ls"))
+    await ctx.show("\n".join(lines), rows)
+
+
+# ---------------------------------------------------------------- план по дням
+SUBJECT_SHORT = {"Латинский язык": "Латынь"}
+
+
+def subject_short(subject: str) -> str:
+    return SUBJECT_SHORT.get(subject) or tu.short_name(subject) or subject
+
+
+def number_in_subject(lesson: content.Lesson) -> int:
+    same = sorted((l for l in content.all_lessons() if l.subject == lesson.subject), key=lambda l: (l.order, l.id))
+    return next((i for i, l in enumerate(same, 1) if l.id == lesson.id), 1)
+
+
+def day_pairs(day: date) -> int:
+    """Нагрузка дня в парах по расписанию (пара 12:00–14:50 считается за две)."""
+    total = 0
+    for item in tu.lessons_for(day):
+        bounds = tu.lesson_bounds(item.time)
+        length = bounds[1] - bounds[0] if bounds else 80
+        total += max(1, round(length / 80))
+    return total
+
+
+def learned_on(data: dict, lesson_id: str) -> date | None:
+    done = progress(data, lesson_id)["done"]
+    try:
+        return date.fromisoformat(done[:10]) if done else None
+    except ValueError:
+        return date.min  # усвоен, дата битая — считаем «давно»
+
+
+def build_plan(data: dict) -> planner.Plan:
+    return planner.build(
+        content.all_lessons(),
+        tu.now(),
+        day_pairs,
+        lambda lesson: deadline(lesson, data),
+        lambda lesson: learned_on(data, lesson.id),
+    )
+
+
+def pairs_text(pairs: int) -> str:
+    if pairs <= 0:
+        return "нет пар"
+    tail = "пара" if pairs % 10 == 1 and pairs % 100 != 11 else "пары" if 2 <= pairs % 10 <= 4 and not 12 <= pairs % 100 <= 14 else "пар"
+    return f"{pairs} {tail}"
+
+
+def minutes_text(minutes: int) -> str:
+    if minutes < 60:
+        return f"≈{minutes} мин"
+    hours, rest = divmod(minutes, 60)
+    return f"≈{hours} ч {rest} мин" if rest else f"≈{hours} ч"
+
+
+def lesson_label(lesson: content.Lesson) -> str:
+    return f"{_icon(lesson.subject)} {subject_short(lesson.subject)} {number_in_subject(lesson)}. {lesson.title}"
+
+
+def _mark(data: dict, lesson: content.Lesson) -> str:
+    entry = progress(data, lesson.id)
+    if entry["done"]:
+        return "✅"
+    if entry["ans"] or entry["pos"]:
+        return "▶️"
+    return "🆕"
+
+
+def _group_parts(group: planner.Group) -> list[tuple[str, list[str]]]:
+    """[(«КР», [«Латынь»]), («ЛР №5», [«Химия»])] — у разных предметов свои цели."""
+    data_labels: dict[str, list[str]] = {}
+    for lesson in group.lessons:
+        target = lesson.target or {}
+        label = str(target.get("label") or "цели")
+        names = data_labels.setdefault(label, [])
+        if subject_short(lesson.subject) not in names:
+            names.append(subject_short(lesson.subject))
+    return list(data_labels.items()) or [(group.label, [subject_short(s) for s in group.subjects])]
+
+
+def _group_text(group: planner.Group) -> str:
+    when = group.due.strftime("%d.%m")
+    return ", ".join(f"{escape(label)} {when} ({escape(', '.join(names))})" for label, names in _group_parts(group))
+
+
+def _group_short(group: planner.Group) -> str:
+    return " / ".join(label for label, _ in _group_parts(group)) + " " + group.due.strftime("%d.%m")
+
+
+def _lesson_button(data: dict, lesson: content.Lesson) -> list:
+    text = f"{_mark(data, lesson)} {short(lesson_label(lesson), 44)} · ≈{lesson.minutes} мин"
+    return [b(text, f"ls:o:{lesson.id}")]
+
+
+async def screen_today(ctx: Ctx, notice: str | None = None) -> None:
+    ctx.clear_pending()
+    data = ctx.data
+    plan = build_plan(data)
+    today = plan.today_day
+    lines = ["📚 <b>Уроки</b>"]
+    if notice:
+        lines.insert(0, notice + "\n")
+    rows: list[list] = []
+    todo = [l for l in today.items if not is_learned(data, l.id)] if today else []
+    reviews = today.review if today else []
+    planned = (today.done + [l for l in today.items if l not in today.done]) if today else []
+    minutes = sum(l.minutes for l in todo) + sum(planner.review_minutes(g) for g in reviews)
+    head = f"📅 <b>Сегодня</b> ({minutes_text(minutes)}) · {tu.fmt_dm(plan.today)} · {pairs_text(today.pairs if today else day_pairs(plan.today))}"
+    lines += ["", head if (todo or reviews) else f"📅 <b>Сегодня</b> · {tu.fmt_dm(plan.today)}"]
+    for lesson in planned:
+        rows.append(_lesson_button(data, lesson))
+    goals = sorted((g for d in plan.days.values() for g in d.due), key=lambda g: g.due)
+    for group in goals:
+        left = sum(1 for l in group.lessons if not is_learned(data, l.id))
+        days_left = (group.due - plan.today).days
+        when = "сегодня" if days_left == 0 else f"осталось {days_left} дн."
+        tail = f"{left} ур. не усвоено" if left else "всё усвоено ✅"
+        lines.append(f"🎯 К {_group_text(group)}: {tail}, {when}")
+    for group in reviews:
+        lines.append(f"🔁 Повторение к {_group_text(group)} — {minutes_text(planner.review_minutes(group))}")
+        rows.append([b(f"🔁 Повторение к {short(_group_short(group), 30)}", f"ls:v:{group.due.strftime('%Y%m%d')}")])
+    if today and today.due:
+        lines.append("📌 Сегодня срок: " + "; ".join(_group_text(g) for g in today.due))
+    following = plan.next_lesson()
+    if not todo and not reviews:
+        if not plan.remaining and content.all_lessons():
+            lines.append("🎉 Все уроки усвоены!")
+        elif planned:
+            lines.append("✅ <b>На сегодня всё</b> — отдыхай или возьми следующий урок заранее.")
+        elif plan.start > plan.today:
+            lines.append("Сегодня уже вечер — новые уроки с завтрашнего дня.")
+            tomorrow = plan.get(plan.start)
+            if tomorrow and tomorrow.items:
+                lines.append(
+                    f"Завтра ({tu.fmt_dm(plan.start)}, {minutes_text(tomorrow.minutes)}): "
+                    + ", ".join(escape(f"{subject_short(l.subject)} {number_in_subject(l)}") for l in tomorrow.items)
+                )
+        elif following is None and not plan.remaining:
+            lines.append("🎉 Все уроки усвоены!" if content.all_lessons() else "Пока нет ни одного урока.")
+        else:
+            lines.append("На сегодня уроков по плану нет.")
+        if following is not None:
+            rows.append([b(f"➕ Взять следующий урок: {short(subject_short(following.subject) + ' ' + str(number_in_subject(following)), 24)}", f"ls:o:{following.id}")])
+    elif todo:
+        lines.append("<i>Короткими блоками: один урок ≈10–15 мин, ответы пиши в чат — они сразу стираются.</i>")
+    for warning in plan.warnings[:3]:
+        lines += ["", escape(warning)]
+    rows.append([b("🗓 План по дням", "ls:P"), b("📚 Все уроки", "ls:A")])
     rows.append(nav())
+    await ctx.show("\n".join(lines), rows)
+
+
+async def screen_plan(ctx: Ctx) -> None:
+    ctx.clear_pending()
+    data = ctx.data
+    plan = build_plan(data)
+    total = sum(l.minutes for l in plan.remaining)
+    lines = [
+        "🗓 <b>План по дням</b>",
+        "<i>Пересчитывается каждый день по прогрессу: пропущенное переезжает вперёд, "
+        "сделанное заранее освобождает дни, новые уроки и сроки распределяются сами. "
+        f"Обычно до 2 уроков в день (в свободный — до 3), не больше {planner.SUBJECT_CAP} по одному предмету.</i>",
+    ]
+    if plan.remaining:
+        lines.append(f"Осталось: {len(plan.remaining)} ур. {minutes_text(total)}")
+    for item in plan.visible_days():
+        parts = [f"<b>{tu.fmt_dm(item.day)}</b>", pairs_text(item.pairs)]
+        if item.items or item.review:
+            parts.append(minutes_text(item.minutes))
+        if item.day == plan.today:
+            parts.append("сегодня")
+        lines += ["", " · ".join(parts)]
+        for lesson in item.done:
+            lines.append(f"  ✅ {escape(short(lesson_label(lesson), 60))}")
+        for lesson in item.items:
+            if lesson in item.done:
+                continue
+            lines.append(f"  {_mark(data, lesson)} {escape(short(lesson_label(lesson), 60))} · ≈{lesson.minutes} мин")
+        for group in item.review:
+            lines.append(f"  🔁 Повторение к {_group_text(group)} · {minutes_text(planner.review_minutes(group))}")
+        for group in item.due:
+            lines.append(f"  📌 Срок: {_group_text(group)}")
+        if item.day == plan.today and not (item.items or item.done or item.review or item.due):
+            lines.append("  — без уроков" + (" (уже вечер)" if plan.start > plan.today else ""))
+    if not plan.remaining and not any(d.review for d in plan.days.values()):
+        lines += ["", "🎉 Всё по плану пройдено — новых уроков пока нет."]
+    for warning in plan.warnings:
+        lines += ["", escape(warning)]
+    await ctx.show("\n".join(lines), [[b("📅 Сегодня", "ls"), b("📚 Все уроки", "ls:A")], nav("ls")])
+
+
+async def screen_review(ctx: Ctx, raw_due: str) -> None:
+    ctx.clear_pending()
+    data = ctx.data
+    try:
+        due = date(int(raw_due[:4]), int(raw_due[4:6]), int(raw_due[6:8]))
+    except (ValueError, IndexError):
+        due = None
+    group = [l for l in ordered(data) if due and (deadline(l, data) or ("", None))[1] == due]
+    if not group:
+        ctx.toast = "Повторение устарело"
+        await screen_today(ctx)
+        return
+    label = deadline(group[0], data)[0]
+    lines = [
+        f"🔁 <b>Повторение к {escape(label)} {due.strftime('%d.%m')}</b>",
+        "<i>Быстро пробегись: открой урок → «🔁 Повторить» или просто перечитай итог. "
+        "Неусвоенные (🆕/▶️) — в первую очередь.</i>",
+    ]
+    rows = []
+    for lesson in sorted(group, key=lambda l: is_learned(data, l.id)):
+        lines.append(f"{_mark(data, lesson)} {escape(lesson_label(lesson))}")
+        rows.append([b(f"{_mark(data, lesson)} {short(lesson_label(lesson), 50)}", f"ls:o:{lesson.id}")])
+    rows.append(nav("ls"))
     await ctx.show("\n".join(lines), rows)
 
 
@@ -390,8 +609,17 @@ async def on_lessons(ctx: Ctx, args: list[str]) -> None:
     if not await ctx.require_owner():
         return
     action = args[0] if args else ""
-    if action in ("", "l", "x"):
+    if action in ("", "x"):
+        await screen_today(ctx)
+        return
+    if action in ("A", "l"):
         await screen_list(ctx, show_all=action == "l" and args[1:2] == ["a"])
+        return
+    if action == "P":
+        await screen_plan(ctx)
+        return
+    if action == "v":
+        await screen_review(ctx, args[1] if len(args) > 1 else "")
         return
     lesson = content.get(args[1]) if len(args) > 1 else None
     if lesson is None:
@@ -541,21 +769,41 @@ async def on_not_text(message: Message) -> None:
 
 
 # ---------------------------------------------------------------- меню и сводка
+def _assignment(data: dict, lessons: list[content.Lesson]) -> str:
+    by_subject: dict[str, list[int]] = {}
+    for lesson in lessons:
+        by_subject.setdefault(subject_short(lesson.subject), []).append(number_in_subject(lesson))
+    parts = []
+    for name, numbers in by_subject.items():
+        word = "урок" if len(numbers) == 1 else "уроки"
+        parts.append(f"{name} — {word} {', '.join(map(str, numbers))}")
+    return ", ".join(parts)
+
+
 def summary(ctx: Ctx) -> list[str]:
-    if not ctx.is_owner:
+    """На главном — только задание на сегодня (а не весь объём)."""
+    if not ctx.is_owner or not content.all_lessons():
         return []
     data = ctx.data
-    groups: dict[tuple[str, date], list[content.Lesson]] = {}
-    for lesson in content.all_lessons():
-        found = deadline(lesson, data)
-        if found and (found[1] - tu.today()).days <= 14:
-            groups.setdefault((lesson.subject, found[1]), []).append(lesson)
-    parts = []
-    for (subject, due), lessons in sorted(groups.items(), key=lambda kv: kv[0][1]):
-        learned = sum(is_learned(data, l.id) for l in lessons)
-        label = deadline(lessons[0], data)[0]
-        parts.append(f"{escape(tu.short_name(subject))} к {escape(label)} {due.strftime('%d.%m')}: {learned}/{len(lessons)}")
-    return [f"📚 Уроки: {' · '.join(parts)}"] if parts else []
+    plan = build_plan(data)
+    today = plan.today_day
+    todo = [l for l in today.items if not is_learned(data, l.id)] if today else []
+    reviews = today.review if today else []
+    if todo or reviews:
+        parts = []
+        if todo:
+            parts.append(_assignment(data, todo))
+        for group in reviews:
+            parts.append(f"🔁 повторение к {_group_short(group)}")
+        minutes = sum(l.minutes for l in todo) + sum(planner.review_minutes(g) for g in reviews)
+        return [escape(f"📚 Сегодня: {'; '.join(parts)} ({minutes_text(minutes)})")]
+    if today and today.done:
+        return ["📚 Сегодня: ✅ уроки на сегодня сделаны"]
+    if plan.start > plan.today:
+        tomorrow = plan.get(plan.start)
+        if tomorrow and tomorrow.items:
+            return [escape(f"📚 Завтра: {_assignment(data, tomorrow.items)} ({minutes_text(tomorrow.minutes)})")]
+    return []
 
 
 def startup(target: Any) -> None:

@@ -32,6 +32,7 @@ MAX_BLOCK_CHARS = 2600  # текст блока; с шапкой и разбор
 MAX_OPTIONS = 6
 MAX_ANSWER_CHARS = 300
 MIN_QUESTIONS, MAX_QUESTIONS = 3, 6
+MIN_MINUTES_EST, MAX_MINUTES_EST = 10, 15
 
 
 class LessonError(ValueError):
@@ -47,6 +48,17 @@ class Lesson:
     sources: tuple[str, ...]
     target: dict | None
     blocks: tuple[dict, ...]
+    minutes_override: int | None = None
+
+    @property
+    def minutes(self) -> int:
+        """Сколько минут займёт урок: поле «minutes» в файле или оценка по объёму
+        (≈300 знаков текста в минуту + минута на вопрос + 2 на задачу), 10–15 мин."""
+        if self.minutes_override:
+            return self.minutes_override
+        chars = sum(len(str(block.get(key) or "")) for block in self.blocks for key in ("text", "q", "explain", "answer"))
+        estimate = chars / 300 + len(self.questions) + 2
+        return int(min(MAX_MINUTES_EST, max(MIN_MINUTES_EST, round(estimate))))
 
     @property
     def questions(self) -> list[int]:
@@ -137,6 +149,9 @@ def validate(raw: Any, where: str = "урок") -> list[str]:
                 date.fromisoformat(str(target["date"]))
             except ValueError:
                 errors.append(f"{where}: target.date — YYYY-MM-DD")
+    minutes = raw.get("minutes")
+    if minutes is not None and (not isinstance(minutes, int) or isinstance(minutes, bool) or not 3 <= minutes <= 40):
+        errors.append(f"{where}: minutes — целое число 3–40")
     blocks = raw.get("blocks")
     if not isinstance(blocks, list) or not blocks:
         return errors + [f"{where}: нет блоков"]
@@ -194,6 +209,7 @@ def from_raw(raw: dict) -> Lesson:
         sources=tuple(raw["sources"]),
         target=dict(raw["target"]) if isinstance(raw.get("target"), dict) else None,
         blocks=tuple(dict(block) for block in raw["blocks"]),
+        minutes_override=raw.get("minutes"),
     )
 
 

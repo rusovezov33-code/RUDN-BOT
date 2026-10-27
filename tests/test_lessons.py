@@ -183,7 +183,7 @@ def test_menu_button_owner_only(use_data):
 def test_list_deadline_first_and_hint(use_data):
     use_data(LIVE_BACKUP)
     bot = FakeBot()
-    press(bot, "ls")
+    press(bot, "ls:A")
     text = screen(bot).text
     assert "к КР 03.11, осталось 8 дн." in text
     assert "к ЛР №5 03.11" in text
@@ -191,10 +191,10 @@ def test_list_deadline_first_and_hint(use_data):
     assert len(cbs) == len(content.all_lessons())
     assert cbs[0] == "ls:o:lat-01"
     tu.set_now(datetime(2026, 11, 2, 9, 0, tzinfo=tu.MSK))
-    press(bot, "ls")
+    press(bot, "ls:A")
     assert "к КР 03.11, уже завтра" in screen(bot).text
     tu.set_now(datetime(2026, 11, 4, 9, 0, tzinfo=tu.MSK))
-    press(bot, "ls")
+    press(bot, "ls:A")
     assert "к КР" not in screen(bot).text
 
 
@@ -212,12 +212,22 @@ def test_home_summary(use_data):
     use_data(LIVE_BACKUP)
     bot = FakeBot()
     press(bot, "home")
-    assert "📚 Уроки: Латинский язык к КР 03.11: 0/8" in screen(bot).text
+    # 26.10 (пн, 2 пары): только задание на сегодня, без общего объёма
+    assert "📚 Сегодня: Латынь — уроки 1, 2 (≈29 мин)" in screen(bot).text
+    assert "0/8" not in screen(bot).text
     press(bot, "ls:m:lat-01")
     press(bot, "home")
-    assert "к КР 03.11: 1/8" in screen(bot).text
+    assert "📚 Сегодня: Латынь — урок 2 (≈14 мин)" in screen(bot).text
+    press(bot, "ls:m:lat-02")
+    press(bot, "home")
+    assert "📚 Сегодня: ✅ уроки на сегодня сделаны" in screen(bot).text
+    tu.set_now(datetime(2026, 10, 26, 22, 0, tzinfo=tu.MSK))  # вечер: показываем завтра
+    press(bot, "ls:u:lat-02")
+    press(bot, "ls:u:lat-01")
+    press(bot, "home")
+    assert "📚 Завтра: Латынь — урок 1 (≈15 мин)" in screen(bot).text
     press(bot, "home", user_id=222)
-    assert "📚 Уроки" not in screen(bot).text
+    assert "📚" not in screen(bot).text
 
 
 # ---------------------------------------------------------------- урок в одном сообщении
@@ -315,7 +325,7 @@ def test_learned_hidden_toggle_unlearn_reset(use_data):
     text = screen(bot).text
     assert "🏁 <b>Итог</b>: верно 5 из 5" in text and "✅ <b>Урок усвоен</b>" in text
     assert feat.is_learned(store.data, LAT)
-    press(bot, "ls")
+    press(bot, "ls:A")
     cbs = callbacks(screen(bot).markup)
     assert f"ls:o:{LAT}" not in cbs and "ls:l:a" in cbs
     assert "👁 Показать усвоенные (1)" in [b.text for b in buttons(screen(bot).markup)]
@@ -370,16 +380,20 @@ def test_all_learned_message(use_data):
     bot = FakeBot()
     for lesson in content.all_lessons():
         press(bot, f"ls:m:{lesson.id}")
-    press(bot, "ls")
+    press(bot, "ls:A")
     assert "🎉 Все уроки усвоены!" in screen(bot).text
     assert callbacks(screen(bot).markup)[0] == "ls:l:a"
+    press(bot, "ls")
+    assert "🎉 Все уроки усвоены!" in screen(bot).text
 
 
 def test_resume_position(use_data):
     use_data(LIVE_BACKUP)
     bot = FakeBot()
     press(bot, f"ls:g:{LAT}:3")
-    press(bot, "ls:x")
+    press(bot, "ls:x")  # «Выйти» → «Сегодня»: урок помечен начатым
+    assert any(x.text.startswith("▶️ 🏛 Латынь 1.") for x in buttons(screen(bot).markup))
+    press(bot, "ls:A")
     assert "▶️ 1." in screen(bot).text and "блок 4/9" in screen(bot).text
     press(bot, f"ls:o:{LAT}")
     assert "Блок 4/9" in screen(bot).text
@@ -423,7 +437,7 @@ def test_crawl_all_lesson_screens(use_data, caplog):
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
     assert not errors, [r.getMessage() for r in errors]
     actions = {c.split(":")[1] for c in produced if c.startswith("ls:")}
-    assert {"o", "g", "a", "s", "t", "m", "p", "u", "r", "R", "x", "l"} <= actions
+    assert {"o", "g", "a", "s", "t", "m", "p", "u", "r", "R", "x", "l", "A", "P"} <= actions
     assert len(seen) > 150
 
 
@@ -435,7 +449,8 @@ def test_stale_and_missing_ids(use_data, caplog):
     assert cb.answers[-1][0] == "Урок не найден"
     assert "Урок не найден" in screen(bot).text and "ls:o:lat-01" in callbacks(screen(bot).markup)
     for data in [f"ls:g:{LAT}:999", f"ls:g:{LAT}:-5", f"ls:g:{LAT}:abc", f"ls:a:{LAT}:0:1",
-                 f"ls:a:{LAT}:3:99", f"ls:a:{LAT}:3:x", f"ls:s:{LAT}:0", f"ls:t:{LAT}:77", "ls:zz:lat-01", "ls:o"]:
+                 f"ls:a:{LAT}:3:99", f"ls:a:{LAT}:3:x", f"ls:s:{LAT}:0", f"ls:t:{LAT}:77", "ls:zz:lat-01", "ls:o",
+                 "ls:v", "ls:v:abc", "ls:v:20250101", "ls:v:20261399"]:
         press(bot, data)
         assert screen(bot) is not None
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
