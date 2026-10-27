@@ -13,9 +13,13 @@ from . import timeutil
 KINDS: dict[str, tuple[str, str]] = {
     "hw": ("📝", "Д/з"),
     "lab": ("🧪", "Лаба"),
+    "ctrl": ("✍️", "Контрольная"),
     "exam": ("🎓", "Экзамен"),
 }
-DEADLINE_KINDS = ("hw", "lab")
+# "ctrl" — контрольная / тест / рубежный контроль (в т.ч. из документов ТУИС).
+# Старая версия бота не знает "ctrl" и покажет такие записи как Д/з — это безопасно.
+DEADLINE_KINDS = ("hw", "lab", "ctrl")
+ALL_KINDS = ("hw", "lab", "ctrl", "exam")
 EXAM_TYPES = {"exam": "Экзамен", "credit": "Зачёт"}
 
 BUCKETS: list[tuple[str, str]] = [

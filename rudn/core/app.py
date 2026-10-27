@@ -44,6 +44,18 @@ def build_registry(feature_modules: list[str] | None = None, registry: Registry 
     return registry
 
 
+def run_startup_hooks(registry: Registry = REGISTRY, target: Any = None) -> None:
+    """Хуки запуска фич (например, подмешать контрольные из ТУИС). Ошибка — только в лог."""
+    target = target or store
+    for feature in registry.features:
+        if feature.on_startup is None:
+            continue
+        try:
+            feature.on_startup(target)
+        except Exception:
+            log.exception("on_startup %s failed", feature.name)
+
+
 def _command_handler(spec: CommandSpec):
     async def handler(message: Message) -> None:
         ctx = Ctx.from_message(message)
@@ -172,6 +184,7 @@ async def main() -> None:
         raise SystemExit("Задай BOT_TOKEN")
     data = store.load()
     registry = build_registry()
+    run_startup_hooks(registry, store)
     files = sum(len(sec.get("files") or []) for s in data["subjects"] for sec in s.get("sections") or [])
     log.info(
         "data=%s subjects=%s files=%s tasks=%s week=%s features=%s",

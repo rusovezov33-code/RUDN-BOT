@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from html import escape
 
+from rudn import tuis
 from rudn.core import config, tasks, timeutil as tu
 from rudn.core.registry import CommandSpec, Feature, MenuButton
 from rudn.core.storage import common_urls
@@ -27,6 +28,19 @@ def section_size(section: dict) -> int:
     return size
 
 
+def doc_block(name: str, section: dict) -> tuple[str, list[dict]]:
+    """Что добавить в раздел из документов ТУИС (БРС, литература, план занятий)."""
+    try:
+        return tuis.section_block(name, str(section.get("title") or ""))
+    except Exception:  # данные ТУИС — дополнение, раздел должен открываться всегда
+        return "", []
+
+
+def section_total(name: str, section: dict) -> int:
+    text, links = doc_block(name, section)
+    return section_size(section) + (1 if text else 0) + len(links)
+
+
 def file_count(subject: dict) -> int:
     return sum(len(section.get("files") or []) for section in subject.get("sections") or [])
 
@@ -48,7 +62,7 @@ async def screen_subjects(ctx: Ctx) -> None:
         files = file_count(subject)
         if files:
             badges += f" 📄{files}"
-        open_tasks = len(tasks.open_items(data, ("hw", "lab", "exam"), si=index))
+        open_tasks = len(tasks.open_items(data, tasks.ALL_KINDS, si=index))
         if open_tasks:
             badges += f" 📝{open_tasks}"
         buttons.append(b(short(subject.get("name") or "Без названия", 24) + badges, f"s:{index}"))
@@ -81,7 +95,18 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
         for code, lesson in slots:
             place = f" · {escape(lesson.place)}" if lesson.place else ""
             lines.append(f"🗓 {code} {escape(lesson.time)}{place} · {tu.WEEK_NOTE[lesson.weeks]}")
-    open_tasks = sorted(tasks.open_items(data, ("hw", "lab", "exam"), si=si), key=tasks.sort_key)
+    found = tuis.courses_for(name)
+    if found:
+        lines.append("")
+        for c in found:
+            got, done_max = tuis.total(data, c)
+            mine = f" · мои баллы: <b>{tuis.fmt_num(got)}</b>" if done_max else ""
+            label = f"{escape(c['name'])}: " if len(found) > 1 else ""
+            lines.append(f"📋 БРС: {label}{tuis.brs_short(c)}{mine}")
+    elif tuis.no_data_for(name):
+        lines.append("")
+        lines.append("📋 БРС: нет данных в документах ТУИС")
+    open_tasks = sorted(tasks.open_items(data, tasks.ALL_KINDS, si=si), key=tasks.sort_key)
     if open_tasks:
         lines.append("")
         lines.append(f"📝 <b>Открытые задания ({len(open_tasks)}):</b>")
@@ -98,10 +123,19 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
     rows.append(row_of(*first_row))
     if ctx.is_owner:
         rows.append(row_of(maybe("➕ Д/з · лаба · экзамен", f"add:s:{si}")))
+    if found:
+        rows.append(
+            row_of(
+                *[
+                    maybe(f"📊 Баллы{' · ' + short(c['name'], 18) if len(found) > 1 else ''}", f"sc:c:{c['key']}|s:{si}")
+                    for c in found
+                ]
+            )
+        )
     filled = [
-        b(f"{section_label(section.get('title'))} ({section_size(section)})", f"s:{si}:{index}")
+        b(f"{section_label(section.get('title'))} ({section_total(name, section)})", f"s:{si}:{index}")
         for index, section in enumerate(subject.get("sections") or [])
-        if isinstance(section, dict) and section_size(section)
+        if isinstance(section, dict) and section_total(name, section)
     ]
     if filled:
         rows += chunk(filled, 2)
@@ -125,15 +159,20 @@ async def screen_section(ctx: Ctx, si: int, j: int) -> None:
     body = escape(str(section.get("text") or ""))
     files = section.get("files") or []
     links = own_links(section)
+    doc_text, doc_links = doc_block(subject.get("name") or "", section)
     lines = [f"<b>{escape(subject.get('name') or '')}</b>", escape(section.get("title") or "")]
     if body:
         lines += ["", body]
-    elif not (links or files):
+    elif not (links or files or doc_text):
         lines += ["", "Пока ничего нет."]
+    if doc_text:
+        lines += ["", "📑 <b>Из документов ТУИС:</b>", doc_text]
     if files and config.public_base():
         lines.append("\nНажми на файл — телефон предложит приложение.")
     elif files:
         lines.append("\nНажми на файл — бот пришлёт его сообщением.")
+    own = {link["url"] for link in links}
+    links = links + [link for link in doc_links if is_url(link.get("url")) and link["url"] not in own]
     rows = [[url_btn(f"🔗 {short(link.get('title') or link['url'], 40)}", link["url"])] for link in links]
     for index, meta in enumerate(files):
         _, file_name = file_meta(meta)

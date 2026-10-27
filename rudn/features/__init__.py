@@ -10,6 +10,7 @@ FEATURES: list[str] = [
     "deadlines",
     "exams",
     "subjects",
+    "scores",
     "pages",
     "admin",
 ]

@@ -52,11 +52,11 @@ async def render(ctx: Ctx, view: str = "a", undo: dict | None = None) -> None:
             await ctx.show("Предмет не найден.", [nav("subs")])
             return
         title = f"📝 <b>Задания · {escape(subjects[si].get('name') or '')}</b>"
-        items = tasks.open_items(data, ("hw", "lab", "exam"), si=si)
+        items = tasks.open_items(data, tasks.ALL_KINDS, si=si)
         with_subject = False
         back = f"s:{si}"
     else:
-        title = "🔥 <b>Дедлайны</b> — Д/з и лабы"
+        title = "🔥 <b>Дедлайны</b> — Д/з, лабы, контрольные"
         items = tasks.open_items(data)
         with_subject = True
         back = ctx.back or "home"
@@ -97,7 +97,7 @@ async def render_history(ctx: Ctx, view: str) -> None:
             tasks.kind_of(item) in tasks.DEADLINE_KINDS
             if si is None
             # в карточке предмета — то же, что в его списке заданий (с экзаменами)
-            else tasks.kind_of(item) in ("hw", "lab", "exam") and tasks.belongs_to(item, data, si)
+            else tasks.kind_of(item) in tasks.ALL_KINDS and tasks.belongs_to(item, data, si)
         )
     ]
     done.sort(key=lambda item: str(item.get("done_at") or item.get("created") or ""), reverse=True)
@@ -211,7 +211,7 @@ feature = Feature(
     name="deadlines",
     callbacks={"dl": on_deadlines},
     menu=[MenuButton(menu_text, "dl", order=20, row="tasks")],
-    commands=[CommandSpec("deadlines", "Дедлайны: Д/з и лабы", cmd_deadlines)],
+    commands=[CommandSpec("deadlines", "Дедлайны: Д/з, лабы, контрольные", cmd_deadlines)],
     summary=summary,
     summary_order=20,
 )

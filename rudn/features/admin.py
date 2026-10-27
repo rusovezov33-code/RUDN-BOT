@@ -19,6 +19,7 @@ from rudn.core.ui import Ctx, b, cancel_row, chunk, maybe, nav, row_of, short
 KIND_BUTTONS = [
     ("hw", "📝 Д/з"),
     ("lab", "🧪 Лаба / практика"),
+    ("ctrl", "✍️ Контрольная / тест"),
     ("exam", "🎓 Экзамен"),
     ("credit", "✅ Зачёт"),
     ("ev", "🔔 Напоминание"),
@@ -99,7 +100,7 @@ async def screen_pick_date(ctx: Ctx, page: int | None = None, error: str | None 
     lines = _header(info, data) + [""]
     if error:
         lines.append(f"⚠️ {error}")
-    quick_mode = page is None and info.get("kind") in ("hw", "lab") and isinstance(si, int)
+    quick_mode = page is None and info.get("kind") in ("hw", "lab", "ctrl") and isinstance(si, int)
     if quick_mode:
         name = data["subjects"][si]["name"]
         lessons = [day for day in tu.upcoming_lesson_dates(name, today + timedelta(days=1), 60)][:6]
