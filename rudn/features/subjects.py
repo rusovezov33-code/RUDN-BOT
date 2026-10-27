@@ -100,8 +100,9 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
     today = tu.today()
     name = subject.get("name") or "Без названия"
     lines = [f"📘 <b>{escape(name)}</b>"]
-    if subject.get("teacher") and subject["teacher"] != "Не указано":
-        lines.append(f"👤 {escape(str(subject['teacher']))}")
+    teacher = subject.get("teacher") if subject.get("teacher") not in (None, "", "Не указано") else tuis.teacher_for(name)
+    if teacher:
+        lines.append(f"👤 {escape(str(teacher))}")
     if subject.get("contacts") and subject["contacts"] != "Не указано":
         lines.append(f"✉️ {escape(str(subject['contacts']))}")
     if subject.get("description"):
@@ -123,6 +124,10 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
     elif tuis.no_data_for(name):
         lines.append("")
         lines.append("📋 БРС: нет данных в документах ТУИС")
+    notes = tuis.notes_for(name)
+    if notes:
+        lines.append("")
+        lines += [f"📌 {escape(note)}" for note in notes]
     open_tasks = sorted(tasks.open_items(data, tasks.ALL_KINDS, si=si), key=tasks.sort_key)
     if open_tasks:
         lines.append("")

@@ -7,6 +7,7 @@ from html import escape
 from rudn.core import tasks, timeutil as tu
 from rudn.core.registry import CommandSpec, Feature, MenuButton
 from rudn.core.ui import Ctx, b, maybe, nav, row_of, short
+from rudn.features import soon
 
 MAX_BUTTONS = 25
 BUCKET_ICON = {"overdue": "⚠️", "today": "🔥", "tomorrow": "⏰", "week": "📆", "later": "🗓", "nodate": "❔"}
@@ -66,6 +67,10 @@ async def render(ctx: Ctx, view: str = "a", undo: dict | None = None) -> None:
         with_subject = True
         back = ctx.back or "home"
     lines = [title, ""]
+    if si is None:
+        upcoming = soon.block(data, today, full=True)
+        if upcoming:
+            lines += upcoming + [""]
     groups = tasks.group_deadlines(items, today)
     if not groups:
         lines.append("✅ Невыполненных заданий нет.")
@@ -200,9 +205,9 @@ def summary(ctx: Ctx) -> list[str]:
         for item in sorted(tasks.open_items(data), key=tasks.sort_key)
         if tasks.bucket_of(tasks.item_date(item), today) in ("overdue", "today", "tomorrow")
     ]
-    if not urgent:
-        nearest = sorted(tasks.open_items(data), key=tasks.sort_key)[:1]
-        urgent = nearest
+    if not urgent and not soon.soon_items(data, today):
+        # ближайшее и так видно в «⏰ Скоро» вверху; иначе — показать самое близкое
+        urgent = sorted(tasks.open_items(data), key=tasks.sort_key)[:1]
     for item in urgent[:3]:
         icon = BUCKET_ICON[tasks.bucket_of(tasks.item_date(item), today)]
         subject = tu.short_name(tasks.subject_name(item, data))

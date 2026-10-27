@@ -6,6 +6,7 @@
 """
 
 FEATURES: list[str] = [
+    "soon",
     "schedule",
     "deadlines",
     "exams",

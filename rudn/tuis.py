@@ -19,6 +19,7 @@ log = logging.getLogger(__name__)
 FILE = "tuis.json"
 PASS_MIN = 51
 SEEDED_KEY = "tuis_seeded"
+SEED_SOURCES = ("tuis", "chat")  # chat — сообщения преподавателей из чата группы (config/tuis.json)
 SCORES_KEY = "scores"
 
 
@@ -57,6 +58,16 @@ def _by_subject(table: dict | None, name: str) -> Any:
 
 def literature_for(name: str) -> dict | None:
     return _by_subject(load().get("literature"), name)
+
+
+def teacher_for(name: str) -> str | None:
+    value = _by_subject(load().get("teachers"), name)
+    return str(value) if value else None
+
+
+def notes_for(name: str) -> list[str]:
+    value = _by_subject(load().get("subject_notes"), name)
+    return [str(x) for x in value] if isinstance(value, list) else []
 
 
 def plan_for(name: str) -> dict | None:
@@ -440,6 +451,15 @@ def _find_duplicate(data: dict, si: int, day: date | None, want_exam: bool, stem
 
 
 def is_duplicate(data: dict, event: dict, si: int) -> bool:
+    if event.get("src") == "chat":
+        # точная дата от преподавателя: дубль — только своя КР/экзамен того же вида на ту же дату
+        # (обычное Д/з на этот день — не дубль: «д.з. на 3.11» и КР 03.11 — разные вещи)
+        day, kind = event_date(event), event.get("kind")
+        return any(
+            isinstance(item, dict) and not item.get("tuis_key") and tasks.belongs_to(item, data, si)
+            and tasks.kind_of(item) == kind and day is not None and tasks.item_date(item) == day
+            for item in data.get("homework") or []
+        )
     return _find_duplicate(
         data, si, event_date(event), event.get("kind") == "exam", _stems(event.get("text") or "")
     ) is not None
@@ -476,7 +496,7 @@ def update_seeded(data: dict) -> list[dict]:
     by_key = {event["key"]: event for event in events()}
     changed = []
     for item in data.get("homework") or []:
-        if not isinstance(item, dict) or item.get("src") != "tuis":
+        if not isinstance(item, dict) or item.get("src") not in SEED_SOURCES:
             continue
         event = by_key.get(item.get("tuis_key"))
         if event is None:
@@ -524,7 +544,7 @@ def seed_events(data: dict, today: date | None = None) -> list[dict]:
 
 
 def _add_event(data: dict, event: dict, si: int) -> dict:
-    extra: dict = {"src": "tuis", "tuis_key": event["key"]}
+    extra: dict = {"src": event.get("src") if event.get("src") in SEED_SOURCES else "tuis", "tuis_key": event["key"]}
     kind = event.get("kind") if event.get("kind") in tasks.KINDS else "ctrl"
     if kind == "exam":
         extra["exam_type"] = event.get("exam_type") if event.get("exam_type") in tasks.EXAM_TYPES else "credit"

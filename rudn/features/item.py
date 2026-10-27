@@ -63,7 +63,7 @@ def item_text(item: dict, data: dict) -> str:
     lines.append(escape(tasks.body_text(item) or "—"))
     if item.get("tuis_key"):
         lines.append("")
-        lines.append("<i>Из документов ТУИС.</i>")
+        lines.append("<i>Со слов преподавателя (чат группы).</i>" if item.get("src") == "chat" else "<i>Из документов ТУИС.</i>")
     if item.get("done"):
         lines.append("")
         lines.append("☑️ Отмечено как " + ("сдано." if is_exam else "сделано."))
