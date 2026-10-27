@@ -25,7 +25,7 @@ def countdown(due: date | None, today: date) -> str:
 def exam_lines(item: dict, data: dict, today: date) -> list[str]:
     due = tasks.item_date(item)
     subject = tasks.subject_name(item, data) or "—"
-    when = tu.fmt_dm(due) if due else "—"
+    when = (tu.fmt_dm(due) if due else "—") + tasks.date_mark(item)
     lines = [f"• <b>{when}</b> · {countdown(due, today)} — {escape(tasks.kind_label(item))} · <b>{escape(subject)}</b>"]
     details = ", ".join(escape(str(item[key])) for key in ("time", "place") if item.get(key))
     if details:
@@ -111,7 +111,7 @@ def summary(ctx: Ctx) -> list[str]:
     item = items[0]
     due = tasks.item_date(item)
     subject = tu.short_name(tasks.subject_name(item, data)) or "—"
-    when = tu.fmt_dm(due) if due else "—"
+    when = (tu.fmt_dm(due) if due else "—") + tasks.date_mark(item)
     return [
         f"🎓 Ближайший: {escape(tasks.kind_label(item))} · <b>{escape(short(subject, 40))}</b> — {when} ({countdown(due, today)})"
     ]

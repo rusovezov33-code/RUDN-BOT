@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import date
+from datetime import date, timedelta
 from functools import lru_cache
 from html import escape
 from typing import Any
@@ -71,11 +71,46 @@ def events() -> list[dict]:
     return [e for e in load().get("events") or [] if isinstance(e, dict) and e.get("key")]
 
 
+# ---------------------------------------------------------------- недели группы
+DEFAULT_TERM_START = date(2026, 10, 19)  # группа позднего заезда
+REGULAR_WARNING = "⚠️ дата основного потока, уточнить"
+
+
+def term_start() -> date:
+    """Понедельник 1-й учебной недели группы — одно значение в config/tuis.json (term_start)."""
+    try:
+        day = date.fromisoformat(str(load().get("term_start")))
+    except ValueError:
+        return DEFAULT_TERM_START
+    return day - timedelta(days=day.weekday())
+
+
+def week_date(week: int, weekday: int = 0) -> date:
+    """Дата по номеру недели (1…) и дню недели (0 = ПН) от term_start."""
+    return term_start() + timedelta(weeks=int(week) - 1, days=int(weekday))
+
+
+def week_of(day: date) -> int:
+    return (day - term_start()).days // 7 + 1
+
+
 def event_date(event: dict) -> date | None:
+    if event.get("week"):
+        try:
+            return week_date(int(event["week"]), int(event.get("weekday") or 0))
+        except (TypeError, ValueError):
+            return None
     try:
         return date.fromisoformat(event["date"]) if event.get("date") else None
     except ValueError:
         return None
+
+
+def event_text(event: dict) -> str:
+    text = str(event.get("text") or "")
+    if event.get("date_basis") == "regular" and event.get("date"):
+        text = f"{text} ({REGULAR_WARNING})"
+    return text
 
 
 # ---------------------------------------------------------------- баллы
@@ -261,14 +296,27 @@ def _mark(day: date | None, nearest: date | None, today: date) -> str:
     return "✔️" if day < today else "•"
 
 
-def _plan_lines(rows: list[dict], today: date) -> list[str]:
-    dates = [date.fromisoformat(r["date"]) for r in rows if r.get("date")]
-    nearest = min((d for d in dates if d >= today), default=None)
+def _row_date(row: dict) -> date | None:
+    if row.get("week"):
+        return week_date(int(row["week"]), int(row.get("weekday") or 0))
+    try:
+        return date.fromisoformat(row["date"]) if row.get("date") else None
+    except ValueError:
+        return None
+
+
+def _plan_lines(rows: list[dict], today: date, regular: bool = False) -> list[str]:
+    """Темы по неделям. Даты по номеру недели считаются от term_start; абсолютные даты
+    основного потока (regular) показываем как есть, без «👉/✔️» — для нашей группы они не точны."""
+    dates = [d for d in (_row_date(r) for r in rows) if d]
+    nearest = None if regular else min((d for d in dates if d >= today), default=None)
     lines = []
-    for row in rows:
-        day = date.fromisoformat(row["date"]) if row.get("date") else None
-        week = f"нед. {row['week']}, " if row.get("week") else ""
+    for index, row in enumerate(rows, 1):
+        day = _row_date(row)
+        week = f"нед. {row['week']}, " if row.get("week") else (f"№{index}, " if regular else "")
         when = f"{week}{tu.fmt_dm(day)}" if day else week.rstrip(", ")
+        if regular:
+            day = None  # без отметок пройдено/ближайшее
         extra = f" — <b>{escape(row['lab'])}</b>" if row.get("lab") else ""
         lines.append(f"{_mark(day, nearest, today)} {when}: {escape(row.get('topic') or '')}{extra}")
     return lines
@@ -279,7 +327,16 @@ def lectures_text(name: str, today: date | None = None) -> str:
     if not plan or not plan.get("lectures"):
         return ""
     today = today or tu.today()
-    return "\n".join([f"<b>{escape(plan.get('lectures_title') or 'Лекции')}</b>"] + _plan_lines(plan["lectures"], today) + [_source(plan)])
+    regular = plan.get("date_basis") == "regular"
+    head = [f"<b>{escape(plan.get('lectures_title') or 'Лекции')}</b>"] + ([_regular_note()] if regular else [])
+    return "\n".join(head + _plan_lines(plan["lectures"], today, regular) + [_source(plan)])
+
+
+def _regular_note() -> str:
+    return (
+        f"⚠️ <i>Даты — из плана основного потока (с 01.09); у группы позднего заезда занятия с "
+        f"{tu.fmt_dm(term_start())}, порядок тем тот же, даты уточнить.</i>"
+    )
 
 
 def labs_text(name: str, today: date | None = None) -> str:
@@ -287,10 +344,17 @@ def labs_text(name: str, today: date | None = None) -> str:
     if not plan or not plan.get("labs"):
         return ""
     today = today or tu.today()
-    lines = [f"<b>{escape(plan.get('labs_title') or 'Занятия')}</b>"] + _plan_lines(plan["labs"], today)
+    regular = plan.get("date_basis") == "regular"
+    lines = [f"<b>{escape(plan.get('labs_title') or 'Занятия')}</b>"] + ([_regular_note()] if regular else [])
+    lines += _plan_lines(plan["labs"], today, regular)
     cons = [c for c in plan.get("consultations") or [] if c.get("date") and c["date"] >= today.isoformat()]
     if cons:
-        lines.append("<b>Консультации (Яндекс Телемост):</b> " + ", ".join(f"{tu.fmt_dm(date.fromisoformat(c['date']))} {c['time']}" for c in cons))
+        warn = f" ({REGULAR_WARNING})" if plan.get("consultations_basis") == "regular" else ""
+        lines.append(
+            "<b>Консультации (Яндекс Телемост):</b> "
+            + ", ".join(f"{tu.fmt_dm(date.fromisoformat(c['date']))} {c['time']}" for c in cons)
+            + warn
+        )
     if plan.get("note"):
         lines.append(f"⚠️ {escape(plan['note'])}")
     lines.append(_source(plan))
@@ -304,7 +368,7 @@ def final_text(name: str) -> str:
     for event in events():
         if event.get("kind") == "exam" and tu.subjects_match(event["subject"], name):
             day = event_date(event)
-            lines.append(f"  {tu.fmt_dm(day) if day else 'дата не указана'} — {escape(event['text'])}")
+            lines.append(f"  {tu.fmt_dm(day) if day else 'дата не указана'} — {escape(event_text(event))}")
     if not lines:
         note = no_data_for(name)
         return f"Форма контроля: нет данных. {escape(note)}" if note else ""
@@ -366,6 +430,59 @@ def is_duplicate(data: dict, event: dict, si: int) -> bool:
     return False
 
 
+def _set_due(item: dict, day: date | None) -> None:
+    for field in ("day", "month", "year", "date"):
+        item.pop(field, None)
+    if day is not None:
+        item.update(day=day.day, month=day.month, year=day.year, date=day.isoformat())
+
+
+def _signature(item: dict) -> tuple[str | None, str]:
+    return item.get("date"), str(item.get("text") or "")
+
+
+def _apply_event(item: dict, event: dict) -> None:
+    day = event_date(event)
+    _set_due(item, day)
+    item["text"] = event_text(event)
+    basis = event.get("date_basis")
+    if basis in ("regular", "week") and day is not None:
+        item["date_hint"] = basis
+    else:
+        item.pop("date_hint", None)
+    item["tuis_sig"] = list(_signature(item))
+
+
+def update_seeded(data: dict) -> list[dict]:
+    """Поправляет ранее добавленные из ТУИС пункты (src: tuis) под текущий config/tuis.json:
+    дата/текст меняются, только если пользователь их не правил (совпадают с тем, что
+    записал бот: tuis_sig или старые значения из event.prev). Удалённые не возвращаются,
+    отметка «выполнено» сохраняется."""
+    by_key = {event["key"]: event for event in events()}
+    changed = []
+    for item in data.get("homework") or []:
+        if not isinstance(item, dict) or item.get("src") != "tuis":
+            continue
+        event = by_key.get(item.get("tuis_key"))
+        if event is None:
+            continue
+        current = _signature(item)
+        known = [tuple(item["tuis_sig"])] if isinstance(item.get("tuis_sig"), list) else []
+        known += [(p.get("date"), str(p.get("text") or "")) for p in event.get("prev") or [] if isinstance(p, dict)]
+        target = dict(item)
+        _apply_event(target, event)
+        if _signature(target) == current and target.get("date_hint") == item.get("date_hint"):
+            if item.get("tuis_sig") != target["tuis_sig"]:
+                item["tuis_sig"] = target["tuis_sig"]
+                changed.append(item)
+            continue
+        if current not in known:
+            continue  # пользователь сам поменял дату/текст — не трогаем
+        _apply_event(item, event)
+        changed.append(item)
+    return changed
+
+
 def seed_events(data: dict, today: date | None = None) -> list[dict]:
     """Добавляет контрольные/зачёты из ТУИС один раз (ключи — в data['tuis_seeded']).
     Удалённое пользователем не возвращается; прошедшие даты и дубли не добавляются."""
@@ -391,11 +508,16 @@ def seed_events(data: dict, today: date | None = None) -> list[dict]:
         kind = event.get("kind") if event.get("kind") in tasks.KINDS else "ctrl"
         if kind == "exam":
             extra["exam_type"] = event.get("exam_type") if event.get("exam_type") in tasks.EXAM_TYPES else "credit"
-        added.append(tasks.new_item(data, kind, si, event.get("text") or "", day, **extra))
+        item = tasks.new_item(data, kind, si, event_text(event), day, **extra)
+        _apply_event(item, event)
+        added.append(item)
     return added
 
 
 def startup(target: Any) -> None:
     data = target.data
-    if seed_events(data):
+    changed = update_seeded(data)
+    added = seed_events(data)
+    if changed or added:
+        log.info("tuis: updated %d, added %d", len(changed), len(added))
         target.save()

@@ -211,7 +211,19 @@ def mark_done(item: dict, done: bool = True) -> None:
         item.pop("done_at", None)
 
 
+DATE_HINTS = {"regular": " ⚠️", "week": " ≈"}
+
+
+def date_mark(item: dict) -> str:
+    """« ⚠️» — дата основного потока (уточнить), « ≈» — вычислена по номеру недели."""
+    return DATE_HINTS.get(str(item.get("date_hint") or ""), "") if item_date(item) else ""
+
+
 def due_text(item: dict, today: date) -> str:
+    return _due_text(item, today) + date_mark(item)
+
+
+def _due_text(item: dict, today: date) -> str:
     due = item_date(item)
     if due is None:
         day_num = item.get("day")

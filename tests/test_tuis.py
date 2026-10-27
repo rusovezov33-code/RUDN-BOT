@@ -57,7 +57,7 @@ def test_section_blocks():
     assert "буфер" in tuis.section_block("Химия", "🗂 Лекции и конспекты")[0]
     brs = tuis.section_block("Латинский язык", "📋 Требования и баллы — БРС")[0]
     assert "3 × 10" in brs and "Зачётная работа" in brs
-    assert "22.12" in tuis.section_block("Латинский язык", "🎓 Экзамен / зачёт")[0]
+    assert "09.02" in tuis.section_block("Латинский язык", "🎓 Экзамен / зачёт")[0]
     assert "нет данных" in tuis.section_block("Основы российской государственности", "📋 Требования и баллы — БРС")[0]
     assert tuis.section_block("Физическая культура", "📖 Учебная литература") == ("", [])
     # синонимы: практика → Введение в специальность
@@ -113,7 +113,7 @@ def test_seed_skips_past_and_existing(use_data):
     data = use_data(LIVE_BACKUP)
     tasks.new_item(data, "hw", 3, "Тест углеводороды в ТУИС", None)
     tasks.new_item(data, "exam", 3, "", date(2026, 12, 22), exam_type="credit")
-    tasks.new_item(data, "lab", 8, "лаба", date(2026, 10, 29))  # мед. информатика, та же дата
+    tasks.new_item(data, "lab", 8, "лаба", date(2026, 12, 17))  # мед. информатика, та же дата (нед. 9 от 19.10)
     added = {i["tuis_key"] for i in tuis.seed_events(data, date(2026, 10, 27))}
     assert "chem-test-hc" not in added and "chem-test-alc" in added
     assert "chem-credit" not in added and "chem-final" in added
