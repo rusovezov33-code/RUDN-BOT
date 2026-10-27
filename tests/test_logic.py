@@ -4,21 +4,17 @@ from rudn.core import config, tasks, timeutil as tu
 from rudn.core.ui import clip_html
 
 
-def test_schedule_config_matches_old_bot_verbatim():
-    import ast
-    import subprocess
-
-    old = subprocess.run(["git", "show", "stable-v1:bot.py"], capture_output=True, text=True, cwd=config.ROOT).stdout
-    schedule = None
-    for node in ast.parse(old).body:
-        if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "SCHEDULE" for t in node.targets):
-            schedule = ast.literal_eval(node.value)
-    assert schedule, "SCHEDULE не найден в stable-v1"
+def test_schedule_config_is_valid_and_has_official_pairs():
     cfg = config.schedule()
-    new = {code: [(l.time, l.subject, l.place, l.weeks) for l in lessons] for code, lessons in cfg.days.items() if lessons}
-    old_map = {code: [tuple(x) for x in lessons] for code, lessons in schedule.items() if lessons}
-    assert new == old_map
     assert cfg.week_anchor == date(2026, 10, 26) and cfg.anchor_is_upper
+    for code, lessons in cfg.days.items():
+        for l in lessons:
+            assert l.weeks in ("both", "upper", "lower"), (code, l)
+            assert l.time and l.subject, (code, l)
+    tue = [(l.time, l.subject, l.weeks) for l in cfg.days["ВТ"]]
+    # Официальное расписание осень 2026: физика во вторник по верхней неделе
+    assert ("16:30–17:50", "Физика", "upper") in tue
+    assert ("19:30–20:50", "Физика", "lower") in tue
 
 
 def test_week_types():
