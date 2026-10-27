@@ -50,13 +50,17 @@ def progress(data: dict, lesson_id: str) -> dict:
     pos = raw.get("pos")
     answers = raw.get("ans")
     done = raw.get("done")
-    return {
+    last = raw.get("last")
+    entry = {
         "pos": pos if isinstance(pos, int) and not isinstance(pos, bool) and pos >= 0 else 0,
         "ans": {k: v for k, v in answers.items() if isinstance(k, str) and isinstance(v, dict)}
         if isinstance(answers, dict)
         else {},
         "done": done if isinstance(done, str) and done else None,
     }
+    if isinstance(last, str) and last:
+        entry["last"] = last  # результат прошлого прохода (после «Вернуть в список»/«Повторить»)
+    return entry
 
 
 def _put(ctx: Ctx, lesson_id: str, entry: dict | None) -> None:
@@ -305,6 +309,8 @@ async def screen_summary(ctx: Ctx, lesson: content.Lesson, note: str | None = No
     lines = _header(ctx, lesson) + ["", f"🏁 <b>Итог</b>: верно {good} из {count}"]
     if answered < count:
         lines.append(f"Без ответа: {count - answered}")
+    if entry.get("last"):
+        lines.append(f"<i>Прошлый проход: верно {escape(entry['last'])}</i>")
     rows: list[list] = []
     if entry["done"]:
         lines.append(
@@ -323,24 +329,35 @@ async def screen_summary(ctx: Ctx, lesson: content.Lesson, note: str | None = No
             numbers = ", ".join(str(lesson.question_number(i)) for i in missing)
             lines.append(f"Повторить вопросы: {numbers}")
             rows.append([b(f"➡️ К вопросу {lesson.question_number(first)}", f"ls:g:{lesson.id}:{first}")])
-        rows.append([b("✅ Всё равно отметить усвоенным", f"ls:m:{lesson.id}")])
-        rows.append([b("🔁 Повторить", f"ls:p:{lesson.id}"), b("📚 К урокам", "ls")])
+        rows.append([b("✅ Отметить усвоенным", f"ls:m:{lesson.id}")])
+        rows.append([b("🔁 Пройти заново", f"ls:r:{lesson.id}:1"), b("📚 К урокам", "ls")])
     lines += ["", "📎 Источники: " + escape("; ".join(lesson.sources))]
     if note:
         lines += ["", note]
-    rows.append([b("◀️ Назад", f"ls:g:{lesson.id}:{total - 1}"), b("🗑 Сбросить прогресс урока", f"ls:r:{lesson.id}")])
+    if entry["done"]:
+        rows.append([b("◀️ Назад", f"ls:g:{lesson.id}:{total - 1}"), b("🗑 Сбросить прогресс урока", f"ls:r:{lesson.id}")])
+    else:
+        rows.append([b("◀️ Назад", f"ls:g:{lesson.id}:{total - 1}")])
     rows.append([b("✖️ Выйти", "ls:x"), b("🏠 Меню", "home")])
     ctx.wait_text(STATE, id=lesson.id, n=total, keep=(PREFIX,), ttl=INPUT_TTL)
     await ctx.show("\n".join(lines), rows)
 
 
-async def screen_reset(ctx: Ctx, lesson: content.Lesson) -> None:
+async def screen_reset(ctx: Ctx, lesson: content.Lesson, again: bool = False) -> None:
     ctx.clear_pending()
-    await ctx.show(
-        f"🗑 Сбросить прогресс урока «{escape(lesson.title)}»?\n"
-        "Ответы и отметка «усвоено» удалятся, урок снова появится в списке.",
-        [[b("Да, сбросить", f"ls:R:{lesson.id}"), b("Нет", f"ls:o:{lesson.id}")], [b("📚 К урокам", "ls"), b("🏠 Меню", "home")]],
-    )
+    if again:
+        text = (
+            f"🔁 Пройти урок «{escape(lesson.title)}» заново?\n"
+            "Ответы удалятся, урок откроется с блока 1."
+        )
+        yes = b("Да, заново", f"ls:R:{lesson.id}:1")
+    else:
+        text = (
+            f"🗑 Сбросить прогресс урока «{escape(lesson.title)}»?\n"
+            "Ответы и отметка «усвоено» удалятся, урок снова появится в списке."
+        )
+        yes = b("Да, сбросить", f"ls:R:{lesson.id}")
+    await ctx.show(text, [[yes, b("Нет", f"ls:o:{lesson.id}")], [b("📚 К урокам", "ls"), b("🏠 Меню", "home")]])
 
 
 # ---------------------------------------------------------------- действия
@@ -349,6 +366,17 @@ def _record(ctx: Ctx, lesson: content.Lesson, index: int, answer: dict) -> None:
     entry["ans"][str(index)] = answer
     entry["pos"] = index
     _put(ctx, lesson.id, entry)
+
+
+def _fresh(lesson: content.Lesson, entry: dict, done: str | None) -> dict:
+    """Новый проход: ответы стёрты, позиция — блок 1, счёт прошлого прохода сохранён."""
+    good, answered, _ = stats(lesson, entry)
+    fresh = {"pos": 0, "ans": {}, "done": done}
+    if answered:
+        fresh["last"] = f"{good} из {len(lesson.questions)}"
+    elif entry.get("last"):
+        fresh["last"] = entry["last"]
+    return fresh
 
 
 def _int(raw: str | None) -> int | None:
@@ -415,18 +443,22 @@ async def on_lessons(ctx: Ctx, args: list[str]) -> None:
         await screen_summary(ctx, lesson)
     elif action == "p":
         entry = progress(ctx.data, lesson.id)
-        _put(ctx, lesson.id, {"pos": 0, "ans": {}, "done": entry["done"]})
+        _put(ctx, lesson.id, _fresh(lesson, entry, done=entry["done"]))
         await screen_block(ctx, lesson, 0)
     elif action == "u":
+        # вернуть в список = пройти заново: старые ответы стираются (иначе итог
+        # тут же снова засчитал бы урок усвоенным), их счёт — в «last»
         entry = progress(ctx.data, lesson.id)
-        entry["done"] = None
-        _put(ctx, lesson.id, entry)
-        await screen_list(ctx, notice=f"↩️ <i>Урок «{escape(lesson.title)}» снова в списке.</i>")
+        _put(ctx, lesson.id, _fresh(lesson, entry, done=None))
+        await screen_list(ctx, notice=f"↩️ <i>Урок «{escape(lesson.title)}» снова в списке — откроется с блока 1.</i>")
     elif action == "r":
-        await screen_reset(ctx, lesson)
+        await screen_reset(ctx, lesson, again=args[2:3] == ["1"])
     elif action == "R":
         _put(ctx, lesson.id, None)
-        await screen_list(ctx, notice=f"🗑 <i>Прогресс урока «{escape(lesson.title)}» сброшен.</i>")
+        if args[2:3] == ["1"]:
+            await screen_block(ctx, lesson, 0)
+        else:
+            await screen_list(ctx, notice=f"🗑 <i>Прогресс урока «{escape(lesson.title)}» сброшен.</i>")
     else:
         await screen_block(ctx, lesson, progress(ctx.data, lesson.id)["pos"])
 

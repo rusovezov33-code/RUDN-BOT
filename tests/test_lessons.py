@@ -358,7 +358,8 @@ def test_not_enough_correct_not_learned(use_data):
     text = screen(bot).text
     assert "верно 0 из 5" in text and "Урок усвоен" not in text
     labels = [b.text for b in buttons(screen(bot).markup)]
-    assert "✅ Всё равно отметить усвоенным" in labels and "➡️ К вопросу 1" in labels
+    assert {"✅ Отметить усвоенным", "➡️ К вопросу 1", "🔁 Пройти заново"} <= set(labels)
+    assert "🗑 Сбросить прогресс урока" not in labels
     assert not feat.is_learned(store.data, LAT)
     press(bot, f"ls:m:{LAT}")
     assert feat.is_learned(store.data, LAT)
@@ -610,3 +611,39 @@ def test_lesson_input_ttl_longer_than_default(use_data):
     state.ts -= feat.INPUT_TTL
     msg = say(bot, "i")
     assert msg.answers and "устарел" in msg.answers[0]
+
+
+def test_returned_lesson_not_stale_summary(use_data):
+    """Регресс: «↩️ Вернуть в список» → снова открыть = блок 1, а не «Урок усвоен»."""
+    use_data(LIVE_BACKUP)
+    bot = FakeBot()
+    lesson = content.get(LAT)
+    answer_all(bot, lesson)
+    press(bot, f"ls:g:{LAT}:{len(lesson.blocks)}")
+    assert feat.is_learned(store.data, LAT)
+    press(bot, f"ls:u:{LAT}")
+    assert "откроется с блока 1" in screen(bot).text
+    assert f"ls:o:{LAT}" in callbacks(screen(bot).markup)
+    press(bot, f"ls:o:{LAT}")
+    text = screen(bot).text
+    assert "Блок 1/9" in text and "Урок усвоен" not in text
+    assert not feat.is_learned(store.data, LAT)
+    # итог без новых ответов отражает текущее состояние, а не прошлое «усвоено»
+    press(bot, f"ls:g:{LAT}:{len(lesson.blocks)}")
+    text = screen(bot).text
+    assert "Урок усвоен" not in text and "верно 0 из 5" in text and "Прошлый проход: верно 5 из 5" in text
+    labels = [b.text for b in buttons(screen(bot).markup)]
+    assert {"✅ Отметить усвоенным", "🔁 Пройти заново"} <= set(labels)
+    press(bot, f"ls:l:a")
+    assert f"ls:o:{LAT}" in callbacks(screen(bot).markup) and not feat.is_learned(store.data, LAT)
+    # «🔁 Пройти заново» — с подтверждением, затем блок 1
+    press(bot, f"ls:r:{LAT}:1")
+    assert "Да, заново" in [b.text for b in buttons(screen(bot).markup)]
+    press(bot, f"ls:o:{LAT}")  # «Нет» → обратно к итогу
+    assert "🏁 <b>Итог</b>" in screen(bot).text
+    press(bot, f"ls:R:{LAT}:1")
+    assert "Блок 1/9" in screen(bot).text and LAT not in store.data["lessons"]
+    # пройти снова на 5/5 → усвоен автоматически
+    answer_all(bot, lesson)
+    press(bot, f"ls:g:{LAT}:{len(lesson.blocks)}")
+    assert "✅ <b>Урок усвоен</b>" in screen(bot).text
