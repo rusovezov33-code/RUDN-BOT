@@ -1,0 +1,86 @@
+{
+ "id": "lat-03",
+ "subject": "Латинский язык",
+ "order": 3,
+ "target": {
+  "key": "lat-kr1-chat",
+  "label": "КР",
+  "date": "2026-11-03"
+ },
+ "title": "Прилагательные: согласование и порядок",
+ "sources": [
+  "Пособие «Латинский язык» (уч.-метод. пособие по мед. терминологии): Тема 4, с. 20–22",
+  "Тема 5, с. 28–30",
+  "Прил. 3, с. 75–76"
+ ],
+ "blocks": [
+  {
+   "type": "explain",
+   "title": "Согласованное определение",
+   "text": "Латинское прилагательное стоит <b>после</b> существительного и согласуется с ним в <b>роде, числе и падеже</b> (с. 21).\n\n<b>1 группа</b> — по 1–2 скл. Словарная форма: <b>albus, a, um</b> (m -us, f -a, n -um); есть тип <b>dexter, tra, trum</b>.\n<b>2 группа</b> — по 3 скл.: <b>brevis, e</b> (m, f -is; n -e) и одного окончания: <b>simplex, icis</b>.\nСравнительная степень: <b>superior, ius</b> (m, f -ior; n -ius) (с. 28–30)."
+  },
+  {
+   "type": "explain",
+   "title": "Как выбрать окончание",
+   "text": "1) По словарной форме узнай <b>род</b> существительного.\n2) Возьми у прилагательного форму этого рода.\n\nnervus (m) → ophthalmic<b>us</b>\npalatum (n) → dur<b>um</b>\ntunica (f) → mucos<b>a</b>\nvertebra (f) → cervical<b>is</b>\nprocessus (m) → articular<b>is</b> superi<b>or</b>\n\n⚠️ Окончания сущ. и прил. могут не совпадать по виду (vertebra cervicalis) — совпадать должны род, число и падеж."
+  },
+  {
+   "type": "example",
+   "title": "4 модели (Прил. 3)",
+   "text": "• сущ. + прил. + прил.: <b>processus articularis superior</b> — верхний суставной отросток (прилагательные переводим с конца).\n\n• сущ. + прил. + сущ. Gen.: <b>ligamentum teres uteri</b> — круглая связка матки.\n\n• сущ. + сущ. Gen. + прил. <b>Nom.</b> → к 1-му слову: <b>ostium urethrae internum</b> — внутреннее отверстие мочеиспускательного канала.\n\n• сущ. + сущ. Gen. + прил. <b>Gen.</b> → ко 2-му слову: <b>corpus ossis hyoidei</b> — тело подъязычной кости."
+  },
+  {
+   "type": "choice",
+   "q": "<b>Твёрдое нёбо</b> (palatum, i n; durus, a, um):",
+   "options": [
+    "palatum durus",
+    "palatum dura",
+    "palatum durum"
+   ],
+   "correct": 2,
+   "explain": "palatum — средний род → прилагательное в форме n: durum (с. 22)."
+  },
+  {
+   "type": "text",
+   "q": "Переведи на латинский: <b>глазной нерв</b>\n(nervus, i m; ophthalmicus, a, um)",
+   "accept": [
+    "nervus ophthalmicus"
+   ],
+   "explain": "nervus — m → ophthalmicus. Прилагательное ставим после существительного."
+  },
+  {
+   "type": "text",
+   "q": "Переведи на латинский: <b>слизистая оболочка носа</b>\n(tunica, ae f; mucosus, a, um; nasus, i m)",
+   "accept": [
+    "tunica mucosa nasi"
+   ],
+   "explain": "tunica (f) → mucosa (f, Nom.); «носа» — Gen. Sing. nasi. Модель: сущ. + прил. + сущ. Gen."
+  },
+  {
+   "type": "choice",
+   "q": "<b>basis cranii externa</b>: к какому слову относится externa?",
+   "options": [
+    "к basis — «наружное основание черепа»",
+    "к cranii — «основание наружного черепа»"
+   ],
+   "correct": 0,
+   "explain": "externa — в Nom. (как basis, is f), значит относится к первому слову. Если бы прилагательное было в Gen., оно относилось бы к cranii (с. 21, Прил. 3)."
+  },
+  {
+   "type": "text",
+   "q": "Переведи на русский: <b>corpus ossis hyoidei</b>",
+   "accept": [
+    "тело подъязычной кости"
+   ],
+   "explain": "hyoidei — Gen. Sing., как ossis → относится ко 2-му слову: «подъязычной кости»."
+  },
+  {
+   "type": "think",
+   "q": "Переведи <b>верхний суставной отросток</b> (processus, us m; articularis, e; superior, ius) и объясни, почему прилагательные стоят «в обратном порядке».",
+   "answer": "<b>processus articularis superior</b>. Прилагательные идут после существительного; при переводе с латинского сначала переводим последнее (superior — верхний), потом предыдущее (articularis — суставной), затем существительное (Прил. 3, с. 75–76). processus — м. р., поэтому articularis (m на -is) и superior (m на -ior).",
+   "accept": [
+    "processus articularis superior"
+   ]
+  }
+ ]
+}

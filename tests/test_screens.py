@@ -83,7 +83,7 @@ def test_crawl_all_screens(use_data, caplog, user_id):
     prefixes = {s.split(":")[0].split("|")[0] for s in seen}
     expected = {"home", "d", "w", "dl", "ex", "subs", "s", "p"}
     if user_id == 111:
-        expected |= {"add", "adm"}
+        expected |= {"add", "adm", "ls"}
     assert expected <= prefixes, expected - prefixes
     assert len(seen) > 60
 

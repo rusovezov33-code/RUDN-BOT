@@ -111,7 +111,7 @@ async def _on_text(ctx: Ctx, message: Message) -> None:
                 await home.screen_home(ctx)
             return
     if expired:
-        await message.answer("⌛ Ввод устарел (прошло больше 15 минут). Начни заново из меню.")
+        await message.answer("⌛ Ввод устарел (слишком долго не было ответа). Начни заново из меню.")
         await home.screen_home(ctx)
         return
     # текст без ожидания ввода — не молчим, а подсказываем

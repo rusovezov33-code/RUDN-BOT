@@ -1,0 +1,85 @@
+{
+ "id": "lat-02",
+ "subject": "Латинский язык",
+ "order": 2,
+ "target": {
+  "key": "lat-kr1-chat",
+  "label": "КР",
+  "date": "2026-11-03"
+ },
+ "title": "Сущ. + сущ. в Gen.: перевод словосочетаний",
+ "sources": [
+  "Пособие «Латинский язык» (уч.-метод. пособие по мед. терминологии): Тема 2, с. 11–12",
+  "Тема 3, с. 16–17",
+  "Тема 7, с. 54",
+  "Прил. 3, с. 75"
+ ],
+ "blocks": [
+  {
+   "type": "explain",
+   "title": "Что? + чего?",
+   "text": "Самая частая модель термина: <b>существительное + существительное</b>.\n\n• Первое слово — главное, в <b>Nom.</b> (что?).\n• Второе (и третье) — в <b>Gen.</b> (чего?). Это <i>несогласованное определение</i>.\n• Порядок слов такой же, как в русском.\n\nПо-русски второе слово иногда переводят прилагательным: <b>arteria genus</b> — артерия колена = коленная артерия (с. 11)."
+  },
+  {
+   "type": "explain",
+   "title": "Алгоритм рус → лат",
+   "text": "1) Найди главное слово (что?) — ставь его в Nom.\n2) Зависимое (чего?) — определи число: одного или многих?\n3) По словарной форме узнай склонение и возьми окончание Gen.:\n\nGen. Sing.: -ae, -i, -is, -us, -ei\nGen. Plur.: 1 <b>-arum</b>, 2 <b>-orum</b>, 3 <b>-um/-ium</b>, 4 <b>-uum</b>, 5 <b>-erum</b>\n(Прил. 2, с. 74)."
+  },
+  {
+   "type": "example",
+   "title": "Примеры",
+   "text": "arcus vertebrae — дуга позвонка (vertebra, ae f)\narcus vertebrarum — дуги позвонков (Gen. Plur.)\ncollum costae — шейка ребра\nseptum nasi — перегородка носа (nasus, i m)\nfossa cranii — ямка черепа (cranium, i n)\ncrista capitis costae — гребень головки ребра (caput, itis n; costa, ae f)\nlamina arcus vertebrae — пластинка дуги позвонка (Прил. 3)"
+  },
+  {
+   "type": "text",
+   "q": "Переведи на латинский: <b>ветвь нижней челюсти</b>\n(ramus, i m; mandibula, ae f)",
+   "accept": [
+    "ramus mandibulae"
+   ],
+   "explain": "mandibula — 1 скл., Gen. Sing. mandibulae. «Нижняя челюсть» — одно слово mandibula (с. 12)."
+  },
+  {
+   "type": "text",
+   "q": "Переведи на латинский: <b>перегородка языка</b>\n(septum, i n; lingua, ae f)",
+   "accept": [
+    "septum linguae"
+   ],
+   "explain": "lingua → Gen. Sing. linguae (1 скл.). septum остаётся в Nom. (с. 12)."
+  },
+  {
+   "type": "choice",
+   "q": "Где ошибка в термине <b>caput costarum</b> = «головка ребра»?",
+   "options": [
+    "costarum — это Gen. Plur. («рёбер»), нужно costae",
+    "caput тоже должно стоять в Gen.",
+    "Ошибки нет"
+   ],
+   "correct": 0,
+   "explain": "-arum — Gen. Plur. 1 скл. Ребро одно → Gen. Sing.: <b>caput costae</b> (упражнение на исправление ошибок, Тема 2)."
+  },
+  {
+   "type": "text",
+   "q": "Переведи на русский: <b>angulus mandibulae</b>",
+   "accept": [
+    "угол нижней челюсти"
+   ],
+   "explain": "angulus, i m — угол; mandibulae — Gen. Sing. от mandibula — нижняя челюсть."
+  },
+  {
+   "type": "text",
+   "q": "Переведи на латинский во мн. ч.: <b>ямки черепа</b>.\n(fossa, ae f; cranium, i n)",
+   "accept": [
+    "fossae cranii"
+   ],
+   "explain": "Главное слово во мн. ч.: Nom. Plur. 1 скл. fossae. Череп один → Gen. Sing. cranii."
+  },
+  {
+   "type": "think",
+   "q": "Переведи <b>гребень головки ребра</b> и объясни, в каком падеже каждое слово.\n(crista, ae f; caput, itis n; costa, ae f)",
+   "answer": "<b>crista capitis costae</b>. crista — Nom. Sing. (что? гребень); capitis — Gen. Sing. от caput, itis n (чего? головки); costae — Gen. Sing. от costa, ae f (чего? ребра). Оба зависимых слова в Gen., порядок как в русском (с. 11, Прил. 3).",
+   "accept": [
+    "crista capitis costae"
+   ]
+  }
+ ]
+}

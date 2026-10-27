@@ -14,5 +14,6 @@ FEATURES: list[str] = [
     "scores",
     "item",
     "pages",
+    "lessons",  # до admin: её router ловит стикеры/фото во время урока раньше admin
     "admin",
 ]

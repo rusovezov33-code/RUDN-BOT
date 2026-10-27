@@ -1,0 +1,80 @@
+{
+ "id": "lat-07",
+ "subject": "Латинский язык",
+ "order": 7,
+ "target": {
+  "key": "lat-kr1-chat",
+  "label": "КР",
+  "date": "2026-11-03"
+ },
+ "title": "Сокращения в анатомических терминах",
+ "sources": [
+  "Пособие «Латинский язык» (уч.-метод. пособие по мед. терминологии): Тема 9, с. 67–69"
+ ],
+ "blocks": [
+  {
+   "type": "explain",
+   "title": "Правила",
+   "text": "В анатомической номенклатуре сокращают частые слова. Мн. ч. — <b>удвоением последней буквы</b> (с. 67):\n\na. / aa. — arteria / arteriae\nv. / vv. — vena / venae\nn. / nn. — nervus / nervi\nm. / mm. — musculus / musculi\nlig. / ligg. — ligamentum / ligamenta\nr. / rr. — ramus / rami\ngl. / gll. — glandula / glandulae\nfor. / forr. — foramen / foramina\nb. — bursa, fasc. — fascia, gangl. — ganglion, lam. — lamina, nucl. — nucleus, reg. — regio, sul. — sulcus, sut. — sutura, tr. — tractus, tun. — tunica, vag. — vagina.\n\n⚠️ Сокращение не показывает падеж — его определяют по соседним словам."
+  },
+  {
+   "type": "example",
+   "title": "Читаем (упражнения Темы 9)",
+   "text": "n. transversus colli — nervus transversus colli — поперечный нерв шеи\nlig. teres hepatis — ligamentum teres hepatis — круглая связка печени\naa. gastricae breves — arteriae gastricae breves — короткие желудочные артерии\nfor. apicis dentis — foramen apicis dentis — отверстие верхушки зуба\nb. m. piriformis — bursa musculi piriformis — сумка грушевидной мышцы (m. здесь = musculi, Gen. Sing.!)"
+  },
+  {
+   "type": "text",
+   "q": "Расшифруй сокращение <b>vv.</b> (полностью, по-латыни)",
+   "accept": [
+    "venae"
+   ],
+   "explain": "Удвоение буквы = мн. ч.: v. — vena, vv. — venae."
+  },
+  {
+   "type": "choice",
+   "q": "Как сокращается <b>ligamenta</b> (мн. ч.)?",
+   "options": [
+    "lig.",
+    "ligg.",
+    "ll."
+   ],
+   "correct": 1,
+   "explain": "lig. — ligamentum, ligg. — ligamenta."
+  },
+  {
+   "type": "text",
+   "q": "Расшифруй <b>gl.</b>",
+   "accept": [
+    "glandula"
+   ],
+   "explain": "gl. — glandula (железа), gll. — glandulae."
+  },
+  {
+   "type": "text",
+   "q": "Напиши полностью: <b>for. ischiadicum majus</b>",
+   "accept": [
+    "foramen ischiadicum majus"
+   ],
+   "explain": "for. — foramen (n), поэтому прилагательные среднего рода: ischiadicum majus — большое седалищное отверстие."
+  },
+  {
+   "type": "choice",
+   "q": "В <b>b. m. piriformis</b> сокращение m. означает…",
+   "options": [
+    "musculus (Nom. Sing.)",
+    "musculi (Gen. Sing.)",
+    "musculi (Nom. Plur.)"
+   ],
+   "correct": 1,
+   "explain": "Сумка чего? — мышцы: bursa musculi piriformis. Падеж видно по прилагательному piriformis (Gen. Sing.) и смыслу."
+  },
+  {
+   "type": "think",
+   "q": "Расшифруй и переведи <b>rr. cutanei cruris mediales</b>.",
+   "answer": "<b>rami cutanei cruris mediales</b> — медиальные кожные ветви голени. rr. = rami (Nom. Plur.), cutanei и mediales согласованы с rami (Nom. Plur.), cruris — Gen. Sing. от crus, cruris n (голень). Прилагательные переводим с конца: медиальные → кожные (Тема 9).",
+   "accept": [
+    "rami cutanei cruris mediales"
+   ]
+  }
+ ]
+}
