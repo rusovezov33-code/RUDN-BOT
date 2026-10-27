@@ -88,6 +88,6 @@ def test_early_weeks_now_upcoming_are_seeded(use_data):
     """Нед. 4/5/8 Мед. информатики у основного потока уже прошли, у нашей группы — впереди."""
     data = use_data(LIVE_BACKUP)
     data["tuis_seeded"] = [e["key"] for e in tuis.events() if not e["key"].startswith("minf-")]
-    added = {i["tuis_key"]: i["date"] for i in tuis.seed_events(data, date(2026, 10, 27))}
+    added = {i["tuis_key"]: i.get("date") for i in tuis.seed_events(data, date(2026, 10, 27))}
     assert added["minf-kr1"] == "2026-11-12" and added["minf-t1"] == "2026-11-19"
     assert added["minf-kr2"] == "2026-12-10" and added["minf-t2"] == "2026-12-17"
