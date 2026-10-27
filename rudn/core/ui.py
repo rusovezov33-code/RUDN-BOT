@@ -139,6 +139,13 @@ class Ctx:
         self.store = store or default_store
         self.edit_live = edit_live
         self._answered = False
+        # всплывающее уведомление к ответу на нажатие: уходит вместе с показом
+        # экрана (параллельно правке), а не отдельным запросом перед ним
+        self.toast: str | None = None
+        # True — в обработчике нажатия/текста: ctx.save() откладывается до flush()
+        # после показа экрана (fsync data.json не задерживает ответ)
+        self.defer_save = False
+        self._dirty = False
         # короткая строка-уведомление над следующим экраном (напр. «Ввод отменён»)
         self.notice: str | None = None
 
@@ -159,7 +166,21 @@ class Ctx:
         return self.store.data
 
     def save(self) -> None:
+        if self.defer_save:
+            self._dirty = True
+            return
         self.store.save()
+
+    async def flush(self) -> None:
+        """Записать отложенные изменения (после того как экран уже показан)."""
+        if not self._dirty:
+            return
+        self._dirty = False
+        save_async = getattr(self.store, "save_async", None)
+        if save_async is not None:
+            await save_async()
+        else:
+            self.store.save()
 
     @property
     def is_owner(self) -> bool:
@@ -182,6 +203,8 @@ class Ctx:
         if self._answered:
             return
         self._answered = True
+        if text is None:
+            text, self.toast = self.toast, None
         try:
             await self.callback.answer(text=text, show_alert=alert)
         except TelegramAPIError:

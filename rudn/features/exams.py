@@ -30,8 +30,9 @@ def exam_lines(item: dict, data: dict, today: date) -> list[str]:
     details = ", ".join(escape(str(item[key])) for key in ("time", "place") if item.get(key))
     if details:
         lines.append(f"   🕘 {details}")
-    if item.get("text"):
-        lines.append(f"   {escape(str(item['text']))}")
+    body = tasks.body_text(item)
+    if body:
+        lines.append(f"   {escape(body)}")
     return lines
 
 
@@ -56,7 +57,10 @@ async def render(ctx: Ctx, past: bool = False, undo: dict | None = None) -> None
             if past:
                 rows.append([b(f"↩ {short(label, 24)}", f"ex:un:{item['id']}"), b("🗑 Удалить", f"ex:rm:{item['id']}")])
             else:
-                rows.append([b(f"✅ Сдал: {short(label, 34)}", f"ex:ok:{item['id']}")])
+                rows.append([b(f"✅ Сдал: {short(label, 30)}", f"ex:ok:{item['id']}"), b("✏️", f"it:o:{item['id']}:e")])
+    if items and ctx.is_owner and not past:
+        lines.append("")
+        lines.append("✅ — сдал · ✏️ — открыть: дата, текст, 🗑 удалить.")
     if past:
         rows.append(nav("ex"))
     else:
@@ -81,13 +85,13 @@ async def on_exams(ctx: Ctx, args: list[str]) -> None:
             await render(ctx, past=action != "ok")
             return
         if action == "rm":
-            ctx.data["homework"].remove(item)
+            tasks.delete_item(ctx.data, item)
             ctx.save()
-            await ctx.answer("🗑 Удалено")
+            ctx.toast = "🗑 Удалено"
         else:
             tasks.mark_done(item, action == "ok")
             ctx.save()
-            await ctx.answer("🎉 Отмечено как сдано" if action == "ok" else "↩ Вернул")
+            ctx.toast = "🎉 Отмечено как сдано" if action == "ok" else "↩ Вернул"
         if action == "ok":
             await render(ctx, undo=item)
         else:

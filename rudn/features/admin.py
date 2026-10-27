@@ -192,8 +192,8 @@ def save_item(ctx: Ctx, info: dict, text: str) -> tuple[str, list[list]]:
     details = ", ".join(escape(str(item[k])) for k in ("time", "place") if item.get(k))
     if details:
         lines.append(f"🕘 {details}")
-    if item.get("text"):
-        lines.append(escape(item["text"]))
+    if tasks.body_text(item):
+        lines.append(escape(tasks.body_text(item)))
     more = f"add:s:{si}" if isinstance(si, int) else "add"
     target = maybe("🎓 Экзамены", "ex") if kind == "exam" else maybe("🔥 Дедлайны", "dl")
     return "\n".join(lines), [row_of(b("➕ Ещё", more), target), nav(f"s:{si}" if isinstance(si, int) else None)]
@@ -212,7 +212,7 @@ async def on_add(ctx: Ctx, args: list[str]) -> None:
             await ctx.answer("Предмет не найден", alert=True)
             return
         # сразу гасим «часики» с понятным текстом — кнопка не выглядит «мёртвой»
-        await ctx.answer(f"➕ {tu.short_name(ctx.data['subjects'][si].get('name') or '')}")
+        ctx.toast = f"➕ {tu.short_name(ctx.data['subjects'][si].get('name') or '')}"
         await screen_kinds(ctx, si)
         return
     state = _state(ctx)

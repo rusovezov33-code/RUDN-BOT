@@ -1,5 +1,5 @@
 {
- "_comment": "Данные из документов ТУИС (осень 2026/27). Генерируется /workspace/tuis/build.py. Только то, что есть в документах.",
+ "_comment": "Данные из документов ТУИС (осень 2026/27). Генерируется tools/build_tuis.py. Только то, что есть в документах.",
  "term_start": "2026-10-19",
  "regular_start": "2026-08-31",
  "_term_comment": "Группа позднего заезда: неделя 1 = понедельник term_start. Даты, вычисленные по номеру недели (week + weekday 0=ПН), считаются от term_start. date_basis: tuis — срок из ТУИС/Moodle для нашего курса; regular — абсолютная дата из документов основного потока (с 01.09) → помечается «⚠️ дата основного потока, уточнить»; week — вычислено по неделе.",
@@ -1639,37 +1639,37 @@
    "date_basis": "week"
   },
   {
-   "subject": "Медицинская информатика",
-   "kind": "ctrl",
-   "exam_type": null,
-   "date": null,
-   "weekday": 3,
-   "date_basis": "week",
    "key": "minf-kr1",
+   "subject": "Медицинская информатика",
+   "kind": "ctrl",
+   "exam_type": null,
+   "date": null,
    "text": "КР1 «Текстовый процессор» + доп. задания (6+3 б., нед. 4 по ФОС)",
-   "week": 4
+   "week": 4,
+   "weekday": 3,
+   "date_basis": "week"
   },
   {
-   "subject": "Медицинская информатика",
-   "kind": "ctrl",
-   "exam_type": null,
-   "date": null,
-   "weekday": 3,
-   "date_basis": "week",
    "key": "minf-t1",
-   "text": "Тест «Текстовый процессор» (6 б., нед. 5 по ФОС)",
-   "week": 5
-  },
-  {
    "subject": "Медицинская информатика",
    "kind": "ctrl",
    "exam_type": null,
    "date": null,
+   "text": "Тест «Текстовый процессор» (6 б., нед. 5 по ФОС)",
+   "week": 5,
    "weekday": 3,
-   "date_basis": "week",
+   "date_basis": "week"
+  },
+  {
    "key": "minf-kr2",
+   "subject": "Медицинская информатика",
+   "kind": "ctrl",
+   "exam_type": null,
+   "date": null,
    "text": "КР2 «Табличный процессор» + доп. задания (6+3 б., нед. 8 по ФОС)",
-   "week": 8
+   "week": 8,
+   "weekday": 3,
+   "date_basis": "week"
   },
   {
    "key": "minf-t2",

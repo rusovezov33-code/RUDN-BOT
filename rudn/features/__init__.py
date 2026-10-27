@@ -11,6 +11,7 @@ FEATURES: list[str] = [
     "exams",
     "subjects",
     "scores",
+    "item",
     "pages",
     "admin",
 ]

@@ -143,7 +143,7 @@ async def on_scores(ctx: Ctx, args: list[str]) -> None:
         if not await ctx.require_owner():
             return
         error = _apply(ctx, key, args[2], args[3])
-        await ctx.answer(error and "Не получилось" or "✅ Сохранено")
+        ctx.toast = error and "Не получилось" or "✅ Сохранено"
         await screen_edit(ctx, key, args[2], error, saved=not error)
     elif action == "r":
         if not await ctx.require_owner():

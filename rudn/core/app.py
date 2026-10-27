@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib
 import logging
 import os
+import time
 from typing import Any
 
 from aiogram import Bot, Dispatcher, F, Router
@@ -84,6 +85,17 @@ async def on_unknown_command(message: Message) -> None:
 
 async def on_text(message: Message) -> None:
     ctx = Ctx.from_message(message)
+    ctx.defer_save = True
+    try:
+        await _on_text(ctx, message)
+    finally:
+        try:
+            await ctx.flush()
+        except Exception:
+            log.exception("save after text failed")
+
+
+async def _on_text(ctx: Ctx, message: Message) -> None:
     expired = pending.is_expired(ctx.user_id)
     state = ctx.pending()
     if state is not None and ctx.is_owner:
@@ -106,11 +118,37 @@ async def on_text(message: Message) -> None:
     await home.screen_home(ctx, notice=home.stray_hint(ctx))
 
 
+SLOW_UPDATE_SECONDS = 0.7
+
+
+def _log_slow(kind: str, what: str, started: float, shown: float | None = None) -> None:
+    total = time.monotonic() - started
+    if total >= SLOW_UPDATE_SECONDS:
+        part = f", до показа {shown - started:.2f}s" if shown is not None else ""
+        log.warning("slow %s %r: %.2fs%s", kind, what, total, part)
+
+
+SLOW_API_SECONDS = 1.0
+
+
+async def log_slow_api(make_request, bot, method):
+    """Логирует медленные запросы к Telegram API (видно, где теряется время)."""
+    started = time.monotonic()
+    try:
+        return await make_request(bot, method)
+    finally:
+        spent = time.monotonic() - started
+        if spent >= SLOW_API_SECONDS and type(method).__name__ != "GetUpdates":
+            log.warning("slow telegram %s: %.2fs", type(method).__name__, spent)
+
+
 async def on_callback(callback: CallbackQuery) -> None:
+    started = time.monotonic()
     raw = callback.data or ""
     main, _, back = raw.partition("|")
     parts = main.split(":")
     ctx = Ctx.from_callback(callback, args=parts[1:], back=back or None)
+    ctx.defer_save = True
     state = ctx.pending()
     if state is not None and parts[0] not in state.data.get("keep", ()):
         ctx.clear_pending()
@@ -132,6 +170,12 @@ async def on_callback(callback: CallbackQuery) -> None:
         await _safe_home(ctx)
     finally:
         await ctx.answer()
+        shown = time.monotonic()
+        try:
+            await ctx.flush()
+        except Exception:
+            log.exception("save after %r failed", raw)
+        _log_slow("callback", raw, started, shown)
 
 
 async def _safe_home(ctx: Ctx) -> None:
@@ -201,6 +245,7 @@ async def main() -> None:
         ",".join(f.name for f in registry.features),
     )
     bot = Bot(token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    bot.session.middleware(log_slow_api)
     dispatcher = build_dispatcher(registry)
     await set_commands(bot, registry)
     http = ClientSession(timeout=ClientTimeout(total=120))

@@ -43,8 +43,12 @@ def day_lines(data: dict, day: date, moment: datetime, detailed: bool) -> list[s
                 continue
             if tu.subjects_match(tasks.subject_name(item, data), lesson.subject):
                 shown.add(id(item))
-                text = escape(item.get("text") or "") if detailed else escape(short(item.get("text") or "", 40))
-                lines.append(f"   {tasks.kind_icon(item)} {escape(tasks.kind_label(item))}: {text}")
+                if tasks.kind_of(item) == "exam":
+                    body = tasks.titled_text(item)  # «Зачёт — письменная работа», без «Зачёт: Зачёт …»
+                else:
+                    body = f"{tasks.kind_label(item)}: {item.get('text') or ''}"
+                text = escape(body) if detailed else escape(short(body, 40 + len(tasks.kind_label(item)) + 2))
+                lines.append(f"   {tasks.kind_icon(item)} {text}")
     if not lessons:
         lines.append("Занятий нет.")
     rest = [item for item in due if id(item) not in shown]
@@ -54,7 +58,8 @@ def day_lines(data: dict, day: date, moment: datetime, detailed: bool) -> list[s
         for item in rest:
             subject = tu.short_name(tasks.subject_name(item, data))
             prefix = f"{escape(short(subject, 30))}: " if subject else ""
-            body = escape(item.get("text") or "") if detailed else escape(short(item.get("text") or "", 40))
+            text = tasks.titled_text(item) if tasks.kind_of(item) == "exam" else str(item.get("text") or "")
+            body = escape(text) if detailed else escape(short(text, 40))
             lines.append(f"{tasks.kind_icon(item)} {prefix}{body}")
     events = tasks.events_on(data, day)
     if events:
@@ -199,7 +204,7 @@ async def on_event_delete(ctx: Ctx, args: list[str]) -> None:
     if len(args) > 2 and args[2] == "y":
         ctx.data["events"].remove(item)
         ctx.save()
-        await ctx.answer("🗑 Удалено")
+        ctx.toast = "🗑 Удалено"
         await screen_day(ctx, day)
         return
     text = "\n".join(escape(part) for part in str(item.get("text") or "").split("\n"))

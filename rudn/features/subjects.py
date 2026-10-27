@@ -63,8 +63,7 @@ def open_task_lines(open_tasks: list[dict], today) -> list[str]:
     split = f" — дедлайнов {len(open_tasks) - exams}, экзаменов/зачётов {exams}" if exams and exams < len(open_tasks) else ""
     lines = [f"📝 <b>Открытые задания ({len(open_tasks)}){split}:</b>"]
     for item in open_tasks[:CARD_TASKS]:
-        label = tasks.kind_label(item) if tasks.kind_of(item) == "exam" else ""
-        body = " — ".join(part for part in (label, str(item.get("text") or "")) if part) or "—"
+        body = (tasks.titled_text(item) if tasks.kind_of(item) == "exam" else str(item.get("text") or "")) or "—"
         lines.append(f"• {escape(tasks.due_text(item, today))} · {tasks.kind_icon(item)} {escape(short(body, 110))}")
     if len(open_tasks) > CARD_TASKS:
         lines.append(f"… и ещё {len(open_tasks) - CARD_TASKS} — в «📝 Задания»")

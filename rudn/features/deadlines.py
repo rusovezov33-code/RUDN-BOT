@@ -33,6 +33,11 @@ def done_button(item: dict, data: dict, view: str, with_subject: bool = True) ->
     return b(f"✅ {tasks.kind_icon(item)} {short(label, 38)}", f"dl:ok:{item['id']}:{view}")
 
 
+def edit_button(item: dict, view: str) -> object:
+    """«✏️» — экран пункта (rudn/features/item.py): изменить или удалить."""
+    return b("✏️", f"it:o:{item['id']}:{view}")
+
+
 def parse_view(view: str) -> int | None:
     if view.startswith("s") and view[1:].isdigit():
         return int(view[1:])
@@ -70,7 +75,7 @@ async def render(ctx: Ctx, view: str = "a", undo: dict | None = None) -> None:
         for item in group:
             lines.append(item_line(item, data, today, with_subject))
             if ctx.is_owner and buttons < MAX_BUTTONS:
-                rows.append([done_button(item, data, view, with_subject)])
+                rows.append([done_button(item, data, view, with_subject), edit_button(item, view)])
                 buttons += 1
         lines.append("")
     exams_link = None
@@ -80,7 +85,7 @@ async def render(ctx: Ctx, view: str = "a", undo: dict | None = None) -> None:
             lines.append(f"🎓 Экзамены и зачёты ({exams}) — отдельно, в «🎓 Экзамены».")
             exams_link = maybe(f"🎓 Экзамены ({exams})", "ex")
     if ctx.is_owner and items:
-        lines.append("Нажми ✅, когда сделаешь.")
+        lines.append("✅ — сделано · ✏️ — открыть: срок, текст, 🗑 удалить.")
         if len(items) > MAX_BUTTONS:
             lines.append(f"Кнопки показаны для первых {MAX_BUTTONS}.")
     add = None
@@ -147,17 +152,17 @@ async def on_deadlines(ctx: Ctx, args: list[str]) -> None:
         if action == "ok":
             tasks.mark_done(item, True)
             ctx.save()
-            await ctx.answer("✅ Готово")
+            ctx.toast = "✅ Готово"
             await render(ctx, view, undo=item)
         elif action == "un":
             tasks.mark_done(item, False)
             ctx.save()
-            await ctx.answer("↩ Вернул в список")
+            ctx.toast = "↩ Вернул в список"
             await render(ctx, view)
         else:
-            ctx.data["homework"].remove(item)
+            tasks.delete_item(ctx.data, item)
             ctx.save()
-            await ctx.answer("🗑 Удалено")
+            ctx.toast = "🗑 Удалено"
             await render_history(ctx, view)
         return
     if action == "h":

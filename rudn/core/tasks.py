@@ -211,6 +211,49 @@ def mark_done(item: dict, done: bool = True) -> None:
         item.pop("done_at", None)
 
 
+_LABEL_SEPARATORS = (" — ", " – ", " - ", ": ", ", ")
+
+
+def body_text(item: dict) -> str:
+    """Текст пункта без повторения типа в начале: при подписи «Зачёт» текст
+    «Зачёт — письменная работа» показывается как «письменная работа» (без «Зачёт — Зачёт»)."""
+    text = str(item.get("text") or "").strip()
+    label = kind_label(item)
+    lowered = text.casefold()
+    if lowered.startswith(label.casefold()):
+        rest = text[len(label):]
+        for sep in _LABEL_SEPARATORS:
+            if rest.startswith(sep):
+                return rest[len(sep):].strip() or text
+    return text
+
+
+def titled_text(item: dict) -> str:
+    """«Зачёт — письменная работа»: тип + текст без дублирования
+    (не «Зачёт — Зачёт — …» и не «Зачёт — Зачётное занятие»)."""
+    label = kind_label(item)
+    text = str(item.get("text") or "").strip()
+    if text.casefold().startswith(label.casefold()):
+        return text  # «Зачётное занятие …», «Экзамен (25 б.)» — тип уже назван
+    body = body_text(item)
+    return f"{label} — {body}" if body else label
+
+
+DELETED_KEY = "tuis_deleted"
+
+
+def delete_item(data: dict, item: dict) -> None:
+    """Удалить пункт; для засеянного из ТУИС запомнить ключ, чтобы он не вернулся."""
+    items = data.get("homework") or []
+    if item in items:
+        items.remove(item)
+    key = item.get("tuis_key")
+    if key:
+        deleted = data.setdefault(DELETED_KEY, [])
+        if key not in deleted:
+            deleted.append(key)
+
+
 DATE_HINTS = {"regular": " ⚠️", "week": " ≈"}
 
 

@@ -406,28 +406,43 @@ def _subject_index(data: dict, name: str) -> int | None:
     return None
 
 
-def is_duplicate(data: dict, event: dict, si: int) -> bool:
-    day = event_date(event)
-    want_exam = event.get("kind") == "exam"
-    stems = _stems(event.get("text") or "")
+def _text_stems(text: str) -> set[str]:
+    return {w[:6] for w in re.findall(r"[а-яёa-z]{4,}", str(text or "").lower())}
+
+
+def _find_duplicate(data: dict, si: int, day: date | None, want_exam: bool, stems: set[str],
+                    legacy: bool = False) -> dict | None:
+    """Пункт пользователя (не из ТУИС), который уже описывает это событие.
+
+    Экзамен/зачёт: та же дата или у одного из них даты нет.
+    Контрольная/д/з: та же дата; либо совпали слова из «кавычек», но только если
+    даты не противоречат (у одного нет даты или они равны). legacy=True — старое
+    правило (слова совпали при любых датах): им раньше могли быть «съедены» пункты."""
     for item in data.get("homework") or []:
         if not isinstance(item, dict) or item.get("tuis_key"):
             continue
         if not tasks.belongs_to(item, data, si):
             continue
-        is_exam = tasks.kind_of(item) == "exam"
-        if is_exam != want_exam:
+        if (tasks.kind_of(item) == "exam") != want_exam:
             continue
         other = tasks.item_date(item)
         if want_exam:
             if day is None or other is None or day == other:
-                return True
+                return item
             continue
         if day is not None and other == day:
-            return True
-        if stems and stems & {w[:6] for w in re.findall(r"[а-яёa-z]{4,}", str(item.get("text") or "").lower())}:
-            return True
-    return False
+            return item
+        if not stems or not stems & _text_stems(item.get("text") or ""):
+            continue
+        if legacy or day is None or other is None:
+            return item
+    return None
+
+
+def is_duplicate(data: dict, event: dict, si: int) -> bool:
+    return _find_duplicate(
+        data, si, event_date(event), event.get("kind") == "exam", _stems(event.get("text") or "")
+    ) is not None
 
 
 def _set_due(item: dict, day: date | None) -> None:
@@ -504,20 +519,87 @@ def seed_events(data: dict, today: date | None = None) -> list[dict]:
         seeded.append(key)
         if is_duplicate(data, event, si):
             continue
-        extra: dict = {"src": "tuis", "tuis_key": key}
-        kind = event.get("kind") if event.get("kind") in tasks.KINDS else "ctrl"
-        if kind == "exam":
-            extra["exam_type"] = event.get("exam_type") if event.get("exam_type") in tasks.EXAM_TYPES else "credit"
-        item = tasks.new_item(data, kind, si, event_text(event), day, **extra)
-        _apply_event(item, event)
-        added.append(item)
+        added.append(_add_event(data, event, si))
+    return added
+
+
+def _add_event(data: dict, event: dict, si: int) -> dict:
+    extra: dict = {"src": "tuis", "tuis_key": event["key"]}
+    kind = event.get("kind") if event.get("kind") in tasks.KINDS else "ctrl"
+    if kind == "exam":
+        extra["exam_type"] = event.get("exam_type") if event.get("exam_type") in tasks.EXAM_TYPES else "credit"
+    item = tasks.new_item(data, kind, si, event_text(event), event_date(event), **extra)
+    _apply_event(item, event)
+    return item
+
+
+RESTORED_KEY = "tuis_restored"
+
+
+def _prev_date(event: dict) -> tuple[bool, date | None]:
+    """(были ли prev, первая прежняя дата)."""
+    prev = [p for p in event.get("prev") or [] if isinstance(p, dict)]
+    if not prev:
+        return False, None
+    raw = prev[0].get("date")
+    try:
+        return True, date.fromisoformat(raw) if raw else None
+    except ValueError:
+        return True, None
+
+
+def restore_suppressed(data: dict, today: date | None = None) -> list[dict]:
+    """Однократно возвращает пункты, которые раньше не были добавлены из-за слишком
+    широкой проверки дублей (напр. «Латынь КР2»: тогда без даты, и совпали слова
+    «склонения» с обычным д/з по латыни), а теперь у события есть своя дата.
+
+    Возвращается только то, чего нет в data: ключ в tuis_seeded, пункта с таким
+    tuis_key нет, ключа нет в tuis_deleted (удалено пользователем) и он ещё не
+    возвращался (tuis_restored). Признак «подавлен, а не удалён»: прежняя версия
+    события была без даты (такие пункты бот не мог показать в сроках), либо старое
+    правило дублей и сейчас находит «съевший» его пункт. Новое правило дублей,
+    прошедшие и недатированные события — не возвращаются."""
+    today = today or tu.today()
+    seeded = data.get(SEEDED_KEY)
+    if not isinstance(seeded, list) or not seeded:
+        return []
+    deleted = set(data.get(tasks.DELETED_KEY) or [])
+    restored = data.get(RESTORED_KEY)
+    if not isinstance(restored, list):
+        restored = []
+    present = {item.get("tuis_key") for item in data.get("homework") or [] if isinstance(item, dict)}
+    added = []
+    for event in events():
+        key = event["key"]
+        if key not in seeded or key in present or key in deleted or key in restored:
+            continue
+        day = event_date(event)
+        if day is None or day < today:
+            continue
+        si = _subject_index(data, event.get("subject") or "")
+        if si is None:
+            continue
+        want_exam = event.get("kind") == "exam"
+        had_prev, old_day = _prev_date(event)
+        stems = _stems(event.get("text") or "") | _stems(" ".join(str(p.get("text") or "") for p in event.get("prev") or [] if isinstance(p, dict)))
+        if had_prev and old_day is None:
+            suppressed = True
+        else:
+            old = old_day if had_prev else day
+            suppressed = _find_duplicate(data, si, old, want_exam, stems, legacy=True) is not None
+        if not suppressed or is_duplicate(data, event, si):
+            continue
+        restored.append(key)
+        added.append(_add_event(data, event, si))
+    if added:
+        data[RESTORED_KEY] = restored
     return added
 
 
 def startup(target: Any) -> None:
     data = target.data
     changed = update_seeded(data)
-    added = seed_events(data)
+    added = restore_suppressed(data) + seed_events(data)
     if changed or added:
         log.info("tuis: updated %d, added %d", len(changed), len(added))
         target.save()
