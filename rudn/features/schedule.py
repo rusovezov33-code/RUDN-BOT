@@ -52,7 +52,7 @@ def day_lines(data: dict, day: date, moment: datetime, detailed: bool) -> list[s
         lines.append("")
         lines.append("🔥 <b>Сроки в этот день:</b>")
         for item in rest:
-            subject = tasks.subject_name(item, data)
+            subject = tu.short_name(tasks.subject_name(item, data))
             prefix = f"{escape(short(subject, 30))}: " if subject else ""
             body = escape(item.get("text") or "") if detailed else escape(short(item.get("text") or "", 40))
             lines.append(f"{tasks.kind_icon(item)} {prefix}{body}")

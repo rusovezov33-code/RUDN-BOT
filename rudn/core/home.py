@@ -60,9 +60,22 @@ def home_text(ctx: Ctx) -> str:
     return "\n".join(lines)
 
 
-async def screen_home(ctx: Ctx, args: list[str] | None = None) -> None:
+CANCELLED = "✖️ <i>Ввод отменён</i>"
+
+
+def stray_hint(ctx: Ctx) -> str:
+    if ctx.is_owner:
+        return (
+            "💡 <i>Сейчас бот не ждёт текста. Пользуйся кнопками: «➕ Добавить» — задание, "
+            "«📊 Баллы» → ✏️ — ввести баллы.</i>"
+        )
+    return "💡 <i>Бот управляется кнопками меню ниже.</i>"
+
+
+async def screen_home(ctx: Ctx, args: list[str] | None = None, notice: str | None = None) -> None:
     ctx.clear_pending()
-    await ctx.show(home_text(ctx), menu_buttons(ctx))
+    text = home_text(ctx)
+    await ctx.show(f"{notice}\n\n{text}" if notice else text, menu_buttons(ctx))
 
 
 async def cmd_start(ctx: Ctx) -> None:
@@ -72,9 +85,8 @@ async def cmd_start(ctx: Ctx) -> None:
 async def cmd_cancel(ctx: Ctx) -> None:
     had = ctx.pending() is not None
     ctx.clear_pending()
-    if had:
-        await ctx.answer("Ввод отменён")
-    await screen_home(ctx)
+    # ctx.answer() у команды ничего не показывает — пишем прямо в меню
+    await screen_home(ctx, notice=CANCELLED if had else None)
 
 
 async def on_cancel(ctx: Ctx, args: list[str]) -> None:

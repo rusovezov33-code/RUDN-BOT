@@ -27,7 +27,7 @@ async def screen_list(ctx: Ctx) -> None:
         got, done_max = tuis.total(data, c)
         mark = f"{tuis.fmt_num(got)}/{tuis.fmt_num(c.get('total_max'))}" if done_max else "—"
         lines.append(f"• <b>{escape(c['name'])}</b>: {mark} · {tuis.brs_short(c)}")
-        rows.append([b(f"{short(c['name'], 34)} · {mark}", f"sc:c:{c['key']}")])
+        rows.append([b(f"{short(tu.short_name(c['name']), 34)} · {mark}", f"sc:c:{c['key']}")])
     missing = sorted((tuis.load().get("no_data") or {}).keys())
     if missing:
         lines += ["", "Нет БРС в документах: " + escape(", ".join(missing))]
@@ -53,7 +53,7 @@ async def screen_course(ctx: Ctx, key: str, error: str | None = None) -> None:
         maximum = tuis.item_max(c, item)
         lines.append(f"• {escape(item['name'])}: <b>{tuis.fmt_num(value)}</b> / {tuis.fmt_num(maximum)}")
         if ctx.is_owner:
-            rows.append([b(f"✏️ {short(item['name'], 30)} ({tuis.fmt_num(value)}/{tuis.fmt_num(maximum)})", f"sc:e:{key}:{item['key']}")])
+            rows.append([b(f"✏️ {short(item['name'], 34)} ({tuis.fmt_num(value)}/{tuis.fmt_num(maximum)})", f"sc:e:{key}:{item['key']}")])
     lines.append("")
     lines += tuis.status_lines(data, c)
     if c.get("note"):
@@ -69,7 +69,11 @@ async def screen_course(ctx: Ctx, key: str, error: str | None = None) -> None:
     await ctx.show("\n".join(lines), rows)
 
 
-async def screen_edit(ctx: Ctx, key: str, item_key: str, error: str | None = None) -> None:
+async def screen_edit(
+    ctx: Ctx, key: str, item_key: str, error: str | None = None, saved: bool = False
+) -> None:
+    """Экран ввода баллов за пункт. Остаётся в режиме ввода после каждого сохранения
+    (можно жать +1 много раз), пока не нажата «⬅ Назад»."""
     c = tuis.course(key)
     item = next((i for i in (c or {}).get("items") or [] if i["key"] == item_key), None)
     if c is None or item is None:
@@ -78,20 +82,26 @@ async def screen_edit(ctx: Ctx, key: str, item_key: str, error: str | None = Non
     current = tuis.scores_of(ctx.data, key).get(item_key)
     maximum = tuis.item_max(c, item)
     ctx.wait_text(STATE, key=key, item=item_key)
+    got, _ = tuis.total(ctx.data, c)
     lines = [
         f"✏️ <b>{escape(c['name'])}</b>",
-        f"{escape(item['name'])}: сейчас <b>{tuis.fmt_num(current)}</b> из {tuis.fmt_num(maximum)}",
+        f"{escape(item['name'])}: сейчас <b>{tuis.fmt_num(current)}</b> из {tuis.fmt_num(maximum)}"
+        + (" ✅ сохранено" if saved else ""),
+        f"Всего по предмету: <b>{tuis.fmt_num(got)}</b> из {tuis.fmt_num(c.get('total_max'))}"
+        f" · ещё можно набрать {tuis.fmt_num(tuis.remaining(ctx.data, c))}",
     ]
     if item.get("note"):
         lines.append(f"<i>{escape(item['note'])}</i>")
     lines += [
         "",
         "Напиши баллы сообщением: <code>3</code> — поставить, <code>+1</code> / <code>-1</code> — прибавить/убавить, <code>-</code> — очистить.",
-        "<i>(ожидаю 15 минут)</i>",
+        "Можно вводить несколько раз подряд; закончить — «⬅ Назад». <i>(ожидаю 15 минут)</i>",
     ]
     if error:
         lines.append(f"\n⚠️ {error}")
     rows = []
+    step = [b(label, f"sc:v:{key}:{item_key}:{raw}") for label, raw in (("−1", "m1"), ("+1", "p1"))]
+    rows.append(step)
     quick = [b(tuis.fmt_num(v), f"sc:v:{key}:{item_key}:{tuis.fmt_num(v).replace(',', '.')}") for v in _quick_values(maximum)]
     if quick:
         rows.append(quick)
@@ -111,6 +121,7 @@ def _apply(ctx: Ctx, key: str, item_key: str, raw: str) -> str | None:
     if c is None or item is None:
         return "Пункт не найден."
     current = tuis.scores_of(ctx.data, key).get(item_key)
+    raw = {"p1": "+1", "m1": "-1"}.get(raw, raw)
     value, error = tuis.parse_score(raw, current, tuis.item_max(c, item))
     if error:
         return error
@@ -132,7 +143,8 @@ async def on_scores(ctx: Ctx, args: list[str]) -> None:
         if not await ctx.require_owner():
             return
         error = _apply(ctx, key, args[2], args[3])
-        await screen_course(ctx, key, error)
+        await ctx.answer(error and "Не получилось" or "✅ Сохранено")
+        await screen_edit(ctx, key, args[2], error, saved=not error)
     elif action == "r":
         if not await ctx.require_owner():
             return
@@ -156,20 +168,16 @@ async def on_score_text(ctx: Ctx, text: str) -> None:
         return
     key, item_key = state.data.get("key", ""), state.data.get("item", "")
     error = _apply(ctx, key, item_key, text)
-    if error:
-        state.touch()
-        await screen_edit(ctx, key, item_key, error)
-        return
-    ctx.clear_pending()
-    await screen_course(ctx, key)
+    await screen_edit(ctx, key, item_key, error, saved=not error)
 
 
 def summary(ctx: Ctx) -> list[str]:
     parts = []
     for c in tuis.courses():
-        got, done_max = tuis.total(ctx.data, c)
-        if done_max:
-            parts.append(f"{escape(short(c.get('bot_subject') or c['name'], 18))} {tuis.fmt_num(got)}")
+        if tuis.has_points(ctx.data, c):
+            got, _ = tuis.total(ctx.data, c)
+            name = tu.short_name(c.get("bot_subject") or c["name"])
+            parts.append(f"{escape(short(name, 18))} {tuis.fmt_num(got)}")
     return [f"📊 Баллы: {' · '.join(parts[:4])}"] if parts else []
 
 

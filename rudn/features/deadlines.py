@@ -13,7 +13,7 @@ BUCKET_ICON = {"overdue": "⚠️", "today": "🔥", "tomorrow": "⏰", "week": 
 
 
 def item_line(item: dict, data: dict, today: date, with_subject: bool = True) -> str:
-    subject = tasks.subject_name(item, data) if with_subject else ""
+    subject = tu.short_name(tasks.subject_name(item, data)) if with_subject else ""
     who = f"{escape(short(subject, 32))}: " if subject else ""
     extra = []
     if item.get("time"):
@@ -28,7 +28,7 @@ def item_line(item: dict, data: dict, today: date, with_subject: bool = True) ->
 
 
 def done_button(item: dict, data: dict, view: str, with_subject: bool = True) -> object:
-    subject = tasks.subject_name(item, data) if with_subject else ""
+    subject = tu.short_name(tasks.subject_name(item, data)) if with_subject else ""
     label = f"{subject}: {item.get('text') or ''}" if subject else str(item.get("text") or "задание")
     return b(f"✅ {tasks.kind_icon(item)} {short(label, 38)}", f"dl:ok:{item['id']}:{view}")
 
@@ -73,6 +73,12 @@ async def render(ctx: Ctx, view: str = "a", undo: dict | None = None) -> None:
                 rows.append([done_button(item, data, view, with_subject)])
                 buttons += 1
         lines.append("")
+    exams_link = None
+    if si is None:
+        exams = len(tasks.upcoming_exams(data, today))
+        if exams:
+            lines.append(f"🎓 Экзамены и зачёты ({exams}) — отдельно, в «🎓 Экзамены».")
+            exams_link = maybe(f"🎓 Экзамены ({exams})", "ex")
     if ctx.is_owner and items:
         lines.append("Нажми ✅, когда сделаешь.")
         if len(items) > MAX_BUTTONS:
@@ -81,6 +87,8 @@ async def render(ctx: Ctx, view: str = "a", undo: dict | None = None) -> None:
     if ctx.is_owner:
         add = maybe("➕ Добавить", f"add:s:{si}" if si is not None else "add")
     rows.append(row_of(add, b("☑️ Выполненные", f"dl:h:{view}")))
+    if exams_link is not None:
+        rows.append([exams_link])
     rows.append(nav(back))
     await ctx.show("\n".join(lines).strip(), rows)
 
@@ -111,12 +119,12 @@ async def render_history(ctx: Ctx, view: str) -> None:
         if ctx.is_owner:
             rows.append(
                 [
-                    b(f"↩ {short(item.get('text') or '', 30)}", f"dl:un:{item['id']}:{view}"),
-                    b("🗑", f"dl:rm:{item['id']}:{view}"),
+                    b(f"↩ {short(item.get('text') or tasks.kind_label(item), 26)}", f"dl:un:{item['id']}:{view}"),
+                    b("🗑 Удалить", f"dl:rm:{item['id']}:{view}"),
                 ]
             )
     if ctx.is_owner and done:
-        lines.append("\n↩ — вернуть в список, 🗑 — удалить навсегда.")
+        lines.append("\n↩ — вернуть в список, «🗑 Удалить» — удалить навсегда.")
     rows.append(nav(f"dl:{view}" if view != "a" else "dl"))
     await ctx.show("\n".join(lines), rows)
 
@@ -192,7 +200,7 @@ def summary(ctx: Ctx) -> list[str]:
         urgent = nearest
     for item in urgent[:3]:
         icon = BUCKET_ICON[tasks.bucket_of(tasks.item_date(item), today)]
-        subject = tasks.subject_name(item, data)
+        subject = tu.short_name(tasks.subject_name(item, data))
         who = f"{escape(short(subject, 28))}: " if subject else ""
         lines.append(
             f"   {icon} {tasks.kind_icon(item)} {who}{escape(short(item.get('text') or '', 50))}"

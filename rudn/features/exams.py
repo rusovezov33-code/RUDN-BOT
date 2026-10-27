@@ -43,7 +43,7 @@ async def render(ctx: Ctx, past: bool = False, undo: dict | None = None) -> None
     lines = [title, ""]
     rows: list[list] = []
     if undo is not None and ctx.is_owner:
-        label = f"{tasks.subject_name(undo, data)} {tu.fmt_short(tasks.item_date(undo)) if tasks.item_date(undo) else ''}"
+        label = f"{tu.short_name(tasks.subject_name(undo, data))} {tu.fmt_short(tasks.item_date(undo)) if tasks.item_date(undo) else ''}"
         rows.append([b(f"↩ Вернуть: {short(label, 30)}", f"ex:un:{undo['id']}:u")])
     if not items:
         lines.append("Пока пусто." if past else "Ближайших экзаменов и зачётов нет.")
@@ -52,9 +52,9 @@ async def render(ctx: Ctx, past: bool = False, undo: dict | None = None) -> None
     for item in items[:30]:
         lines.extend(exam_lines(item, data, today))
         if ctx.is_owner:
-            label = f"{tasks.subject_name(item, data)} {tu.fmt_short(tasks.item_date(item)) if tasks.item_date(item) else ''}"
+            label = f"{tu.short_name(tasks.subject_name(item, data))} {tu.fmt_short(tasks.item_date(item)) if tasks.item_date(item) else ''}"
             if past:
-                rows.append([b(f"↩ {short(label, 30)}", f"ex:un:{item['id']}"), b("🗑", f"ex:rm:{item['id']}")])
+                rows.append([b(f"↩ {short(label, 24)}", f"ex:un:{item['id']}"), b("🗑 Удалить", f"ex:rm:{item['id']}")])
             else:
                 rows.append([b(f"✅ Сдал: {short(label, 34)}", f"ex:ok:{item['id']}")])
     if past:
@@ -110,7 +110,7 @@ def summary(ctx: Ctx) -> list[str]:
         return []
     item = items[0]
     due = tasks.item_date(item)
-    subject = tasks.subject_name(item, data) or "—"
+    subject = tu.short_name(tasks.subject_name(item, data)) or "—"
     when = tu.fmt_dm(due) if due else "—"
     return [
         f"🎓 Ближайший: {escape(tasks.kind_label(item))} · <b>{escape(short(subject, 40))}</b> — {when} ({countdown(due, today)})"

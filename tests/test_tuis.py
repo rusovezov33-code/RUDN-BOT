@@ -80,7 +80,7 @@ def test_parse_and_status():
     tuis.set_score(data, "chem", "kr", 15)
     assert tuis.total(data, chem) == (35, 44)
     text = "\n".join(tuis.status_lines(data, chem))
-    assert "не хватает <b>16</b>" in text and "56" in text
+    assert "не хватает <b>16</b>" in text and "65" in text
     tuis.set_score(data, "chem", "ref", 10)
     tuis.set_score(data, "chem", "final", 40)
     text = "\n".join(tuis.status_lines(data, chem))
@@ -156,7 +156,7 @@ def test_score_entry_flow(use_data):
     run(app.on_text(FakeMessage(bot, "+1,5")))
     assert json.loads(store.path.read_text("utf-8"))["scores"] == {"chem": {"labs": 6.5}}
     shot = bot.last_screen()
-    assert "6,5</b> / 24" in shot.text
+    assert "6,5</b> из 24" in shot.text and "сохранено" in shot.text
     run(app.on_callback(FakeCallback(bot, "sc:e:chem:labs")))
     run(app.on_text(FakeMessage(bot, "99")))
     assert "от 0 до 24" in bot.last_screen().text

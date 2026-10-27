@@ -53,6 +53,24 @@ def common_link_row() -> list:
     return [url_btn(f"🔗 {link['title']}", link["url"]) for link in config.subjects().common_links if is_url(link.get("url"))]
 
 
+CARD_TASKS = 6
+
+
+def open_task_lines(open_tasks: list[dict], today) -> list[str]:
+    """Блок «Открытые задания» карточки: число = все строки, которые есть в «📝 Задания»;
+    видно, сколько из них экзамены/зачёты и сколько не поместилось."""
+    exams = sum(1 for item in open_tasks if tasks.kind_of(item) == "exam")
+    split = f" — дедлайнов {len(open_tasks) - exams}, экзаменов/зачётов {exams}" if exams and exams < len(open_tasks) else ""
+    lines = [f"📝 <b>Открытые задания ({len(open_tasks)}){split}:</b>"]
+    for item in open_tasks[:CARD_TASKS]:
+        label = tasks.kind_label(item) if tasks.kind_of(item) == "exam" else ""
+        body = " — ".join(part for part in (label, str(item.get("text") or "")) if part) or "—"
+        lines.append(f"• {escape(tasks.due_text(item, today))} · {tasks.kind_icon(item)} {escape(short(body, 110))}")
+    if len(open_tasks) > CARD_TASKS:
+        lines.append(f"… и ещё {len(open_tasks) - CARD_TASKS} — в «📝 Задания»")
+    return lines
+
+
 async def screen_subjects(ctx: Ctx) -> None:
     data = ctx.data
     subjects = data.get("subjects") or []
@@ -65,11 +83,11 @@ async def screen_subjects(ctx: Ctx) -> None:
         open_tasks = len(tasks.open_items(data, tasks.ALL_KINDS, si=index))
         if open_tasks:
             badges += f" 📝{open_tasks}"
-        buttons.append(b(short(subject.get("name") or "Без названия", 24) + badges, f"s:{index}"))
+        buttons.append(b(short(tu.short_name(subject.get("name") or "Без названия"), 24) + badges, f"s:{index}"))
     rows = chunk(buttons, 2)
     rows.append(common_link_row())
     rows.append(nav())
-    text = "📚 <b>Предметы</b>\n📄 — файлы, 📝 — открытые задания" if subjects else "📚 <b>Предметы</b>\n\nПока ничего нет."
+    text = "📚 <b>Предметы</b>\n📄 — файлы, 📝 — открытые задания (вместе с экзаменами/зачётами)" if subjects else "📚 <b>Предметы</b>\n\nПока ничего нет."
     await ctx.show(text, rows)
 
 
@@ -100,7 +118,7 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
         lines.append("")
         for c in found:
             got, done_max = tuis.total(data, c)
-            mine = f" · мои баллы: <b>{tuis.fmt_num(got)}</b>" if done_max else ""
+            mine = f" · мои баллы: <b>{tuis.fmt_num(got)}</b>" if tuis.has_points(data, c) else ""
             label = f"{escape(c['name'])}: " if len(found) > 1 else ""
             lines.append(f"📋 БРС: {label}{tuis.brs_short(c)}{mine}")
     elif tuis.no_data_for(name):
@@ -109,11 +127,7 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
     open_tasks = sorted(tasks.open_items(data, tasks.ALL_KINDS, si=si), key=tasks.sort_key)
     if open_tasks:
         lines.append("")
-        lines.append(f"📝 <b>Открытые задания ({len(open_tasks)}):</b>")
-        for item in open_tasks[:5]:
-            lines.append(
-                f"• {escape(tasks.due_text(item, today))} · {tasks.kind_icon(item)} {escape(short(item.get('text') or '', 60))}"
-            )
+        lines += open_task_lines(open_tasks, today)
     rows: list[list] = []
     upcoming = tu.upcoming_lesson_dates(name, today, 45, moment=tu.now())
     first_row = []
@@ -122,12 +136,12 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
     first_row.append(maybe(f"📝 Задания ({len(open_tasks)})" if open_tasks else "📝 Задания", f"dl:s:{si}"))
     rows.append(row_of(*first_row))
     if ctx.is_owner:
-        rows.append(row_of(maybe("➕ Д/з · лаба · экзамен", f"add:s:{si}")))
+        rows.append(row_of(maybe("➕ Добавить: Д/з · контрольная · экзамен", f"add:s:{si}")))
     if found:
         rows.append(
             row_of(
                 *[
-                    maybe(f"📊 Баллы{' · ' + short(c['name'], 18) if len(found) > 1 else ''}", f"sc:c:{c['key']}|s:{si}")
+                    maybe(f"📊 Баллы{' · ' + short(tu.short_name(c['name']), 22) if len(found) > 1 else ''}", f"sc:c:{c['key']}|s:{si}")
                     for c in found
                 ]
             )

@@ -2,6 +2,7 @@
 контекст экрана Ctx и «живое» меню (одно сообщение-меню на чат)."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from html import escape, unescape
@@ -71,8 +72,15 @@ def kb(rows: Iterable[list[InlineKeyboardButton]]) -> InlineKeyboardMarkup:
 
 
 def short(text: str, limit: int) -> str:
+    """Обрезка до limit символов по границе слова (если граница не слишком далеко)."""
     text = " ".join(str(text or "").split())
-    return text if len(text) <= limit else text[: limit - 1] + "…"
+    if len(text) <= limit:
+        return text
+    cut = text[: limit - 1]
+    space = cut.rfind(" ")
+    if space >= limit * 0.5:
+        cut = cut[:space]
+    return cut.rstrip(" ,.;:—–-(") + "…"
 
 
 _TAG = re.compile(r"<[^>]+>")
@@ -131,6 +139,8 @@ class Ctx:
         self.store = store or default_store
         self.edit_live = edit_live
         self._answered = False
+        # короткая строка-уведомление над следующим экраном (напр. «Ввод отменён»)
+        self.notice: str | None = None
 
     @classmethod
     def from_message(cls, message: Any, **kw: Any) -> "Ctx":
@@ -180,9 +190,24 @@ class Ctx:
     async def show(self, text: str, rows: Iterable[list[InlineKeyboardButton]], *, new: bool = False) -> None:
         """Показать экран: правим текущее сообщение-меню, иначе отправляем новое,
         а старое меню удаляем — в чате всегда одно живое меню."""
+        if self.notice:
+            text = f"{self.notice}\n\n{text}"
+            self.notice = None
         text = clip_html(text)
         markup = kb(rows)
-        await self.answer()
+        # ответ на нажатие и правку сообщения шлём параллельно: на медленной сети
+        # это экономит целый запрос к Telegram (особенно заметно на «⬅ Назад»)
+        answering = None
+        if self.callback is not None and not self._answered:
+            answering = asyncio.ensure_future(self.answer())
+            await asyncio.sleep(0)  # пусть ответ уйдёт первым, правка — следом, не дожидаясь
+        try:
+            await self._show(text, markup, new)
+        finally:
+            if answering is not None:
+                await answering
+
+    async def _show(self, text: str, markup: Any, new: bool) -> None:
         target = None
         if not new:
             if self.callback is not None and self.callback.message is not None:
@@ -205,7 +230,7 @@ class Ctx:
                 if "not modified" in str(error).lower():
                     await self._set_live(target)
                     return
-                log.warning("edit failed, sending new: %s", error)
+                log.warning("edit of %s failed, sending new: %s", target, error)
         sent = await self.bot.send_message(
             self.chat_id, text, reply_markup=markup, parse_mode=ParseMode.HTML, link_preview_options=NO_PREVIEW
         )

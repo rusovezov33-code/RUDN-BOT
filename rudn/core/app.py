@@ -60,10 +60,11 @@ def _command_handler(spec: CommandSpec):
     async def handler(message: Message) -> None:
         ctx = Ctx.from_message(message)
         await ctx.delete_incoming()
-        if spec.name != "cancel":
+        if spec.name != "cancel" and ctx.pending() is not None:
             # любая команда прерывает незаконченный ввод — иначе следующий текст
-            # молча сохранится как д/з
+            # молча сохранится как д/з; об этом коротко сообщаем
             ctx.clear_pending()
+            ctx.notice = home.CANCELLED
         try:
             await spec.handler(ctx)
         except Exception:
@@ -77,7 +78,8 @@ def _command_handler(spec: CommandSpec):
 async def on_unknown_command(message: Message) -> None:
     ctx = Ctx.from_message(message)
     await ctx.delete_incoming()
-    await home.screen_home(ctx)
+    had = ctx.pending() is not None
+    await home.screen_home(ctx, notice=home.CANCELLED if had else None)
 
 
 async def on_text(message: Message) -> None:
@@ -98,7 +100,10 @@ async def on_text(message: Message) -> None:
             return
     if expired:
         await message.answer("⌛ Ввод устарел (прошло больше 15 минут). Начни заново из меню.")
-    await home.screen_home(ctx)
+        await home.screen_home(ctx)
+        return
+    # текст без ожидания ввода — не молчим, а подсказываем
+    await home.screen_home(ctx, notice=home.stray_hint(ctx))
 
 
 async def on_callback(callback: CallbackQuery) -> None:

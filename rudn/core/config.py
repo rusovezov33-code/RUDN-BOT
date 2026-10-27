@@ -91,6 +91,7 @@ class SubjectsConfig:
     drop_if_empty: frozenset[str]
     common_links: tuple[dict[str, str], ...]
     section_template: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    short_names: dict[str, str] = field(default_factory=dict)  # норм. полное имя → короткое для кнопок
 
 
 @lru_cache(maxsize=1)
@@ -130,4 +131,5 @@ def subjects() -> SubjectsConfig:
         drop_if_empty=frozenset(raw.get("drop_if_empty") or []),
         common_links=tuple(raw.get("common_links") or []),
         section_template=tuple(raw.get("section_template") or []),
+        short_names={_norm(k): str(v) for k, v in (raw.get("short_names") or {}).items() if v},
     )

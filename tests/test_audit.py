@@ -214,7 +214,8 @@ def test_cancel_command_still_reports(use_data):
         press(bot, data)
     msg = FakeMessage(bot, "/cancel")
     run(app._command_handler(REGISTRY.commands["cancel"][1])(msg))
-    assert pending.get(111) is None and bot.last_screen().text.startswith("🎓 <b>РУДН")
+    shot = bot.last_screen().text
+    assert pending.get(111) is None and shot.startswith("✖️ <i>Ввод отменён</i>") and "🎓 <b>РУДН" in shot
 
 
 # --- загрузка файлов

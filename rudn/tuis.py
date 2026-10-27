@@ -122,6 +122,22 @@ def total(data: dict, c: dict) -> tuple[float, float]:
     return got, done_max
 
 
+def max_sum(c: dict) -> float:
+    """Сумма максимумов всех пунктов БРС (у Физики в документе 98, а не 100)."""
+    return sum(item_max(c, item) for item in c.get("items") or [])
+
+
+def remaining(data: dict, c: dict) -> float:
+    """Сколько ещё можно набрать: по каждому пункту (максимум − уже набрано)."""
+    return max(0.0, max_sum(c) - total(data, c)[0])
+
+
+def has_points(data: dict, c: dict) -> bool:
+    """Баллы показываем в сводках только когда набрано больше нуля
+    (явный 0 виден на экране «📊 Баллы» у самого пункта)."""
+    return total(data, c)[0] > 0
+
+
 def grade(c: dict, points: float) -> dict | None:
     for row in c.get("scale") or []:
         if row["min"] <= points <= row["max"] + 0.999:
@@ -164,7 +180,7 @@ def status_lines(data: dict, c: dict) -> list[str]:
     full = float(c.get("total_max") or 100)
     pass_min = float(c.get("pass_min") or PASS_MIN)
     lines = [f"Набрано: <b>{fmt_num(got)}</b> из {fmt_num(full)} (оценено пунктов на {fmt_num(done_max)} б.)"]
-    left = full - done_max
+    left = remaining(data, c)
     if got >= pass_min:
         lines.append(f"✅ Порог {fmt_num(pass_min)} б. пройден.")
     else:
