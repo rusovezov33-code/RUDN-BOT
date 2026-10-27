@@ -92,7 +92,13 @@ async def render_history(ctx: Ctx, view: str) -> None:
     done = [
         item
         for item in data.get("homework") or []
-        if item.get("done") and (si is None or tasks.belongs_to(item, data, si))
+        if item.get("done")
+        and (
+            tasks.kind_of(item) in tasks.DEADLINE_KINDS
+            if si is None
+            # в карточке предмета — то же, что в его списке заданий (с экзаменами)
+            else tasks.kind_of(item) in ("hw", "lab", "exam") and tasks.belongs_to(item, data, si)
+        )
     ]
     done.sort(key=lambda item: str(item.get("done_at") or item.get("created") or ""), reverse=True)
     done = done[:15]

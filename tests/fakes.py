@@ -11,6 +11,11 @@ class FakeBot:
     def __init__(self):
         self.calls = []
         self.messages = {}
+        self.files = {}
+
+    async def download(self, file, destination=None, **kw):
+        destination.write(self.files[file.file_id])
+        return destination
 
     def _record(self, kind, text=None, markup=None, **kw):
         self.calls.append(SimpleNamespace(kind=kind, text=text, markup=markup, kw=kw))
@@ -74,3 +79,9 @@ class FakeMessage:
 
     async def answer(self, text, **kw):
         self.answers.append(text)
+
+
+def fake_document(bot, name, content=b"x", mime="application/octet-stream"):
+    file_id = f"FILE-{next(_ids)}"
+    bot.files[file_id] = content
+    return SimpleNamespace(file_id=file_id, file_name=name, file_size=len(content), mime_type=mime)

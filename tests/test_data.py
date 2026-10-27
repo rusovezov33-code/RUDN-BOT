@@ -15,7 +15,7 @@ def test_sources_load_without_loss(name, use_data):
         pytest.skip(f"нет файла {source}")
     raw = json.loads(source.read_text(encoding="utf-8"))
     data = use_data(source)
-    assert len(data["subjects"]) == 14
+    assert len(data["subjects"]) == 15
     assert len(data["pages"]) == len(raw.get("pages") or [])
     assert data["pages"] == (raw.get("pages") or [])
     assert len(data["events"]) == len(raw.get("events") or [])
@@ -37,7 +37,7 @@ def test_live_backup_exact(use_data):
 def test_legacy_synthetic(use_data):
     data = use_data(LEGACY)
     names = [s["name"] for s in data["subjects"]]
-    assert "Экономика" not in names
+    assert "Экономика" in names  # есть в официальном расписании (СБ, верхняя)
     assert any("БЖД" in n for n in names)
     ids = [item["id"] for item in data["homework"]]
     assert len(set(ids)) == len(ids) == 4
@@ -75,7 +75,7 @@ def test_corrupt_file_is_kept(tmp_path):
     path = tmp_path / "data.json"
     path.write_text("{broken", encoding="utf-8")
     data = Store(path).load()
-    assert len(data["subjects"]) == 14
+    assert len(data["subjects"]) == 15
     assert list(tmp_path.glob("data.json.corrupt-*"))
 
 

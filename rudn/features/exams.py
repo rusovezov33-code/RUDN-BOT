@@ -6,7 +6,7 @@ from html import escape
 
 from rudn.core import tasks, timeutil as tu
 from rudn.core.registry import CommandSpec, Feature, MenuButton
-from rudn.core.ui import Ctx, b, maybe, nav, row_of, short
+from rudn.core.ui import Ctx, b, nav, short
 
 
 def countdown(due: date | None, today: date) -> str:
@@ -35,17 +35,20 @@ def exam_lines(item: dict, data: dict, today: date) -> list[str]:
     return lines
 
 
-async def render(ctx: Ctx, past: bool = False) -> None:
+async def render(ctx: Ctx, past: bool = False, undo: dict | None = None) -> None:
     data = ctx.data
     today = tu.today()
     items = tasks.past_exams(data, today) if past else tasks.upcoming_exams(data, today)
     title = "🎓 <b>Прошедшие / сданные</b>" if past else "🎓 <b>Экзамены и зачёты</b>"
     lines = [title, ""]
     rows: list[list] = []
+    if undo is not None and ctx.is_owner:
+        label = f"{tasks.subject_name(undo, data)} {tu.fmt_short(tasks.item_date(undo)) if tasks.item_date(undo) else ''}"
+        rows.append([b(f"↩ Вернуть: {short(label, 30)}", f"ex:un:{undo['id']}:u")])
     if not items:
         lines.append("Пока пусто." if past else "Ближайших экзаменов и зачётов нет.")
         if not past and ctx.is_owner:
-            lines.append("Добавь: «➕ Экзамен/зачёт» ниже.")
+            lines.append("Добавь кнопкой «➕ Экзамен» или «➕ Зачёт» ниже.")
     for item in items[:30]:
         lines.extend(exam_lines(item, data, today))
         if ctx.is_owner:
@@ -57,8 +60,9 @@ async def render(ctx: Ctx, past: bool = False) -> None:
     if past:
         rows.append(nav("ex"))
     else:
-        add = maybe("➕ Экзамен/зачёт", "add:k:exam") if ctx.is_owner else None
-        rows.append(row_of(add, b("🗂 Прошедшие", "ex:p")))
+        if ctx.is_owner:
+            rows.append([b("➕ Экзамен", "add:k:exam"), b("➕ Зачёт", "add:k:credit")])
+        rows.append([b("🗂 Прошедшие", "ex:p")])
         rows.append(nav(ctx.back))
     await ctx.show("\n".join(lines).strip(), rows)
 
@@ -74,7 +78,9 @@ async def on_exams(ctx: Ctx, args: list[str]) -> None:
             item = None
         if item is None:
             await ctx.answer("Не найдено", alert=True)
-        elif action == "rm":
+            await render(ctx, past=action != "ok")
+            return
+        if action == "rm":
             ctx.data["homework"].remove(item)
             ctx.save()
             await ctx.answer("🗑 Удалено")
@@ -82,7 +88,11 @@ async def on_exams(ctx: Ctx, args: list[str]) -> None:
             tasks.mark_done(item, action == "ok")
             ctx.save()
             await ctx.answer("🎉 Отмечено как сдано" if action == "ok" else "↩ Вернул")
-        await render(ctx, past=action != "ok")
+        if action == "ok":
+            await render(ctx, undo=item)
+        else:
+            # ↩ из строки «Вернуть» на главном экране экзаменов — остаёмся там же
+            await render(ctx, past=not (action == "un" and len(args) > 2 and args[2] == "u"))
         return
     await render(ctx, past=action == "p")
 

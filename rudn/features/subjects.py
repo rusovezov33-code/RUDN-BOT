@@ -6,7 +6,7 @@ from html import escape
 from rudn.core import config, tasks, timeutil as tu
 from rudn.core.registry import CommandSpec, Feature, MenuButton
 from rudn.core.storage import common_urls
-from rudn.core.ui import Ctx, b, chunk, maybe, nav, row_of, short, url_btn
+from rudn.core.ui import Ctx, b, chunk, is_url, maybe, nav, row_of, short, url_btn
 from rudn.core.web import file_link, file_meta
 
 
@@ -15,7 +15,7 @@ def own_links(section: dict) -> list[dict]:
     return [
         link
         for link in section.get("links") or []
-        if isinstance(link, dict) and link.get("url") and link["url"] not in commons
+        if isinstance(link, dict) and is_url(link.get("url")) and link["url"] not in commons
     ]
 
 
@@ -36,7 +36,7 @@ def section_label(title: str) -> str:
 
 
 def common_link_row() -> list:
-    return [url_btn(f"🔗 {link['title']}", link["url"]) for link in config.subjects().common_links if link.get("url")]
+    return [url_btn(f"🔗 {link['title']}", link["url"]) for link in config.subjects().common_links if is_url(link.get("url"))]
 
 
 async def screen_subjects(ctx: Ctx) -> None:
@@ -90,7 +90,7 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
                 f"• {escape(tasks.due_text(item, today))} · {tasks.kind_icon(item)} {escape(short(item.get('text') or '', 60))}"
             )
     rows: list[list] = []
-    upcoming = tu.upcoming_lesson_dates(name, today, 45)
+    upcoming = tu.upcoming_lesson_dates(name, today, 45, moment=tu.now())
     first_row = []
     if upcoming:
         first_row.append(maybe(f"📅 Ближайшая · {tu.fmt_dm(upcoming[0])}", f"d:{upcoming[0].isoformat()}|s:{si}"))
@@ -149,10 +149,17 @@ async def on_subjects(ctx: Ctx, args: list[str]) -> None:
 
 
 async def on_subject(ctx: Ctx, args: list[str]) -> None:
-    if len(args) >= 2:
-        await screen_section(ctx, int(args[0]), int(args[1]))
+    try:
+        numbers = [int(value) for value in args[:2]]
+        if not numbers or min(numbers) < 0:
+            raise ValueError
+    except ValueError:
+        await ctx.show("Предмет не найден.", [nav("subs")])
+        return
+    if len(numbers) == 2:
+        await screen_section(ctx, numbers[0], numbers[1])
     else:
-        await screen_subject(ctx, int(args[0]))
+        await screen_subject(ctx, numbers[0])
 
 
 async def on_file(ctx: Ctx, args: list[str]) -> None:

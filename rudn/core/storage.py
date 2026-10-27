@@ -101,7 +101,7 @@ def normalize(data: Any) -> dict[str, Any]:
             subject["name"] = renamed
         if subject.get("description") in cfg.legacy_descriptions:
             subject["description"] = ""
-        if not isinstance(subject.get("sections"), list):
+        if not isinstance(subject.get("sections"), list) or not subject["sections"]:
             subject["sections"] = section_template()
     for item in homework:
         renamed = cfg.renames.get(item.get("subject", ""))

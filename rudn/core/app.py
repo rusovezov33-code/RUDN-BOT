@@ -48,6 +48,10 @@ def _command_handler(spec: CommandSpec):
     async def handler(message: Message) -> None:
         ctx = Ctx.from_message(message)
         await ctx.delete_incoming()
+        if spec.name != "cancel":
+            # любая команда прерывает незаконченный ввод — иначе следующий текст
+            # молча сохранится как д/з
+            ctx.clear_pending()
         try:
             await spec.handler(ctx)
         except Exception:

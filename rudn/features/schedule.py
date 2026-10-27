@@ -9,6 +9,9 @@ from rudn.core.registry import CommandSpec, Feature, MenuButton
 from rudn.core.ui import Ctx, b, chunk, nav, short, with_back
 
 
+MAX_EVENT_BUTTONS = 5
+
+
 def _due_on(data: dict, day: date) -> list[dict]:
     return [
         item
@@ -96,12 +99,16 @@ async def screen_day(ctx: Ctx, day: date) -> None:
             b(f"{tu.fmt_dm(next_day)} ▶", with_back(f"d:{next_day.isoformat()}", back)),
         ]
     ]
-    extra = [b("🗓 Неделя", f"w:{tu.monday_of(day).isoformat()}")]
+    extra = [b("🗓 Неделя", f"w:{tu.default_week_monday(day).isoformat()}")]
     if not tu.lessons_for(day):
         nearest = next_study_day(day)
-        if nearest:
+        if nearest and nearest != next_day:
             extra.insert(0, b(f"⏭ Пары {tu.fmt_dm(nearest)}", with_back(f"d:{nearest.isoformat()}", back)))
     rows.append(extra)
+    if ctx.is_owner:
+        for index, item in enumerate(tasks.events_on(ctx.data, day)[:MAX_EVENT_BUTTONS]):
+            label = str(item.get("text") or "").split("\n")[0]
+            rows.append([b(f"🗑 Напоминание: {short(label, 24)}", f"evd:{day.isoformat()}:{index}")])
     rows.append(nav(back))
     await ctx.show("\n".join(lines), rows)
 
@@ -119,11 +126,13 @@ async def screen_week(ctx: Ctx, monday: date) -> None:
         "",
     ]
     data = ctx.data
+    sunday_shown = False
     for offset in range(7):
         day = monday + timedelta(days=offset)
         body = day_lines(data, day, moment, detailed=False)
         if offset == 6 and body == ["Занятий нет."]:
             continue
+        sunday_shown = sunday_shown or offset == 6
         mark = " · сегодня" if day == today else ""
         lines.append(f"<b>{tu.fmt_dm(day)}</b>{mark}")
         lines.extend("выходной" if line == "Занятий нет." else line for line in body if line)
@@ -137,9 +146,12 @@ async def screen_week(ctx: Ctx, monday: date) -> None:
             b("След. ▶", with_back(f"w:{next_w.isoformat()}", back)),
         ]
     ]
+    days = [monday + timedelta(days=i) for i in range(6)]
+    if sunday_shown:
+        days.append(sunday)
     day_buttons = [
         b(("• " if day == today else "") + tu.fmt_dm(day), f"d:{day.isoformat()}|w:{monday.isoformat()}")
-        for day in (monday + timedelta(days=i) for i in range(6))
+        for day in days
     ]
     rows += chunk(day_buttons, 3)
     rows.append(nav(back))
@@ -154,14 +166,47 @@ async def on_day(ctx: Ctx, args: list[str]) -> None:
     elif key == "tm":
         day = today + timedelta(days=1)
     else:
-        day = date.fromisoformat(key)
+        try:
+            day = date.fromisoformat(key)
+        except ValueError:
+            await ctx.answer("Меню обновилось")
+            day = today
     await screen_day(ctx, day)
 
 
 async def on_week(ctx: Ctx, args: list[str]) -> None:
     key = args[0] if args else "now"
-    monday = tu.default_week_monday(tu.today()) if key == "now" else date.fromisoformat(key)
+    try:
+        monday = tu.default_week_monday(tu.today()) if key == "now" else date.fromisoformat(key)
+    except ValueError:
+        await ctx.answer("Меню обновилось")
+        monday = tu.default_week_monday(tu.today())
     await screen_week(ctx, monday)
+
+
+async def on_event_delete(ctx: Ctx, args: list[str]) -> None:
+    """evd:<дата>:<n> — спросить, evd:<дата>:<n>:y — удалить n-е напоминание дня."""
+    if not await ctx.require_owner():
+        return
+    try:
+        day = date.fromisoformat(args[0])
+        index = int(args[1])
+        item = tasks.events_on(ctx.data, day)[index]
+    except (IndexError, ValueError):
+        await ctx.answer("Напоминание уже удалено", alert=True)
+        await screen_day(ctx, tu.today())
+        return
+    if len(args) > 2 and args[2] == "y":
+        ctx.data["events"].remove(item)
+        ctx.save()
+        await ctx.answer("🗑 Удалено")
+        await screen_day(ctx, day)
+        return
+    text = "\n".join(escape(part) for part in str(item.get("text") or "").split("\n"))
+    await ctx.show(
+        f"🗑 <b>Удалить напоминание на {tu.fmt_dm(day)}?</b>\n\n{text}",
+        [[b("🗑 Да, удалить", f"evd:{day.isoformat()}:{index}:y"), b("Отмена", f"d:{day.isoformat()}")], nav(f"d:{day.isoformat()}")],
+    )
 
 
 def summary(ctx: Ctx) -> list[str]:
@@ -214,7 +259,7 @@ async def cmd_week(ctx: Ctx) -> None:
 
 feature = Feature(
     name="schedule",
-    callbacks={"d": on_day, "w": on_week},
+    callbacks={"d": on_day, "w": on_week, "evd": on_event_delete},
     menu=[
         MenuButton("📅 Сегодня", "d:t", order=10, row="sched"),
         MenuButton("⏭ Завтра", "d:tm", order=11, row="sched"),

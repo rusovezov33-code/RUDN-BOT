@@ -82,11 +82,15 @@ def slots_for_subject(name: str) -> list[tuple[str, Lesson]]:
     ]
 
 
-def upcoming_lesson_dates(name: str, start: date, days: int = 60) -> list[date]:
+def upcoming_lesson_dates(name: str, start: date, days: int = 60, moment: datetime | None = None) -> list[date]:
+    """Даты пар по предмету. Если передан `moment`, в его день уже закончившиеся пары не считаются."""
     found = []
     for offset in range(days):
         day = start + timedelta(days=offset)
-        if any(subjects_match(lesson.subject, name) for lesson in lessons_for(day)):
+        lessons = [lesson for lesson in lessons_for(day) if subjects_match(lesson.subject, name)]
+        if moment is not None and day == moment.date():
+            lessons = [lesson for lesson in lessons if lesson_state(lesson.time, moment) != "past"]
+        if lessons:
             found.append(day)
     return found
 
@@ -124,7 +128,7 @@ def lesson_state(time_str: str, moment: datetime) -> str:
     if not bounds:
         return "future"
     current = moment.hour * 60 + moment.minute
-    if current > bounds[1]:
+    if current >= bounds[1]:
         return "past"
     if current >= bounds[0]:
         return "now"

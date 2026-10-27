@@ -213,25 +213,42 @@ async def on_add(ctx: Ctx, args: list[str]) -> None:
         await screen_kinds(ctx, si)
         return
     state = _state(ctx)
+    if state is None and action == "k":
+        # «➕ Экзамен» / «➕ Зачёт» с экрана экзаменов — это начало нового ввода,
+        # а не устаревший шаг
+        _start(ctx, si=None)
+        state = _state(ctx)
     if state is None:
         await ctx.answer("⌛ Ввод устарел, начни заново")
         await screen_kinds(ctx, None)
         return
     info = state.data
+    subject_count = len(ctx.data.get("subjects") or [])
     if action == "k":
-        kind = args[1]
+        kind = args[1] if len(args) > 1 else ""
         if kind not in KIND_TITLES:
             await screen_kinds(ctx, None)
             return
         info["kind"] = kind
         if len(args) > 2 and args[2].isdigit():
+            if not 0 <= int(args[2]) < subject_count:
+                await ctx.answer("Предмет не найден", alert=True)
+                await screen_kinds(ctx, None)
+                return
             info["si"] = int(args[2])
+        if kind == "ev":
+            info["si"] = None
         if kind == "ev" or isinstance(info.get("si"), int):
             await screen_pick_date(ctx)
         else:
             await screen_pick_subject(ctx)
     elif action == "su":
-        info["si"] = int(args[1])
+        si = int(args[1])
+        if not 0 <= si < subject_count:
+            await ctx.answer("Предмет не найден", alert=True)
+            await screen_pick_subject(ctx)
+            return
+        info["si"] = si
         await screen_pick_date(ctx)
     elif action == "cal":
         await screen_pick_date(ctx, page=max(0, int(args[1])))
@@ -351,10 +368,10 @@ async def handle_document(message: Message) -> None:
         return
     document = message.document
     file_name = document.file_name or "document"
-    if file_name.lower().endswith(".json") and "data" in file_name.lower():
-        if document.file_size and document.file_size > 2_000_000:
-            await message.answer("Слишком большой файл для базы.")
-            return
+    parsed = None
+    looks_like_db = file_name.lower().endswith(".json") and "data" in file_name.lower()
+    if looks_like_db and not (document.file_size and document.file_size > 2_000_000):
+        # если файл не база бота — это обычный файл, предлагаем положить в раздел
         buffer = BytesIO()
         await message.bot.download(document, destination=buffer)
         raw = buffer.getvalue().decode("utf-8", errors="replace")
@@ -363,8 +380,8 @@ async def handle_document(message: Message) -> None:
             if not isinstance(parsed, dict) or not isinstance(parsed.get("subjects"), list):
                 raise ValueError
         except Exception:
-            await message.answer("Это не база бота.")
-            return
+            parsed = None
+    if parsed is not None:
         ctx.wait_text("restore", keep=("rs",), raw=raw)
         text = (
             "♻️ <b>Заменить текущую базу этим файлом?</b>\n"

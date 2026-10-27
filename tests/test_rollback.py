@@ -28,4 +28,6 @@ def test_stable_v1_reads_v2_file(use_data, tmp_path, monkeypatch):
     assert old["homework"] == written["homework"]
     assert old["events"] == written["events"]
     assert old["pages"] == written["pages"]
-    assert [s["name"] for s in old["subjects"]] == [s["name"] for s in written["subjects"]]
+    # stable-v1 сам выкидывает пустую «Экономику» (bot.py:373) — это без потери данных.
+    expected = [s["name"] for s in written["subjects"] if s["name"] != "Экономика"]
+    assert [s["name"] for s in old["subjects"]] == expected

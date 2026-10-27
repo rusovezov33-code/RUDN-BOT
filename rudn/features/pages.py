@@ -8,7 +8,7 @@ from __future__ import annotations
 from html import escape
 
 from rudn.core.registry import Feature, MenuButton
-from rudn.core.ui import Ctx, nav, short, url_btn
+from rudn.core.ui import Ctx, is_url, nav, short, url_btn
 
 # Заголовки, содержащие эти слова, заменены фичами schedule/deadlines/exams.
 SUPERSEDED = ("Расписание", "Дедлайны")
@@ -39,7 +39,7 @@ async def on_page(ctx: Ctx, args: list[str]) -> None:
     rows = [
         [url_btn(f"🔗 {short(link.get('title') or link['url'], 40)}", link["url"])]
         for link in page.get("links") or []
-        if isinstance(link, dict) and link.get("url")
+        if isinstance(link, dict) and is_url(link.get("url"))
     ]
     rows.append(nav(ctx.back))
     await ctx.show(text, rows)

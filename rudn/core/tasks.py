@@ -105,8 +105,11 @@ def belongs_to(item: dict, data: dict, si: int) -> bool:
     if not 0 <= si < len(subjects):
         return False
     name = subjects[si].get("name") or ""
-    own = subject_name(item, data)
-    return item.get("subject_idx") == si or (bool(own) and timeutil.subjects_match(own, name))
+    own = str(item.get("subject") or "")
+    if own and any(timeutil.subjects_match(own, s.get("name") or "") for s in subjects):
+        # имя известно — доверяем ему, а не (возможно устаревшему) subject_idx
+        return timeutil.subjects_match(own, name)
+    return item.get("subject_idx") == si
 
 
 def open_items(data: dict, kinds: Iterable[str] = DEADLINE_KINDS, si: int | None = None) -> list[dict]:

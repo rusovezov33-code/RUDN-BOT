@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from html import escape
+from html import escape, unescape
 from typing import Any, Iterable
 
 from aiogram.enums import ParseMode
@@ -37,6 +37,11 @@ def b(text: str, data: str) -> InlineKeyboardButton:
         log.exception("битая кнопка %r", text)
         data = HOME
     return InlineKeyboardButton(text=text, callback_data=data)
+
+
+def is_url(url: object) -> bool:
+    """Telegram отклоняет всё сообщение, если у кнопки кривой URL — такие ссылки прячем."""
+    return isinstance(url, str) and " " not in url.strip() and url.strip().lower().startswith(("http://", "https://", "tg://"))
 
 
 def url_btn(text: str, url: str) -> InlineKeyboardButton:
@@ -84,8 +89,14 @@ def clip_html(text: str, limit: int = TEXT_LIMIT) -> str:
     for index, line in enumerate(lines):
         if size + len(line) + 1 > limit - 40:
             if not out:
-                plain = escape(_TAG.sub("", line))
-                out.append(plain[: limit - 40])
+                # убираем теги, раскрываем сущности и режем уже чистый текст,
+                # чтобы не разрезать «&amp;» пополам и не экранировать дважды
+                plain = unescape(_TAG.sub("", line))
+                budget = limit - 40
+                cut = plain[:budget]
+                while cut and len(escape(cut)) > budget:
+                    cut = cut[:-1]
+                out.append(escape(cut))
             rest = len(lines) - index
             out.append(f"… (ещё {rest} строк)")
             break

@@ -114,13 +114,18 @@ def schedule() -> ScheduleConfig:
     )
 
 
+def _norm(value: str) -> str:
+    """Как timeutil.norm_name: регистр, ё→е, лишние пробелы."""
+    return " ".join(str(value or "").lower().replace("ё", "е").split())
+
+
 @lru_cache(maxsize=1)
 def subjects() -> SubjectsConfig:
     raw = _read_json("subjects.json")
     return SubjectsConfig(
         canonical=tuple(raw.get("canonical") or []),
         renames=dict(raw.get("renames") or {}),
-        aliases={k.lower(): v.lower() for k, v in (raw.get("aliases") or {}).items()},
+        aliases={_norm(k): _norm(v) for k, v in (raw.get("aliases") or {}).items()},
         legacy_descriptions=frozenset(raw.get("legacy_descriptions") or []),
         drop_if_empty=frozenset(raw.get("drop_if_empty") or []),
         common_links=tuple(raw.get("common_links") or []),
