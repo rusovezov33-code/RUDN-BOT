@@ -14,6 +14,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, LinkPrevie
 
 from . import config, pending
 from .registry import REGISTRY, RegistryError
+from . import access
 from .storage import Store, store as default_store
 
 log = logging.getLogger(__name__)
@@ -128,15 +129,22 @@ class Ctx:
         back: str | None = None,
         store: Store | None = None,
         edit_live: bool = False,
+        username: str | None = None,
     ) -> None:
         self.bot = bot
         self.user_id = user_id
+        self.username = username
+        self.role = access.role(user_id, username)
         self.chat_id = chat_id
         self.callback = callback
         self.message = message
         self.args = args or []
         self.back = back
-        self.store = store or default_store
+        # не-владелец никогда не получает настоящий data.json: только копию,
+        # а его save() пишет лишь access.json (свой прогресс уроков тестера)
+        self.store = store or (
+            default_store if self.role == access.OWNER else access.SandboxStore(user_id, self.role == access.TESTER)
+        )
         self.edit_live = edit_live
         self._answered = False
         # всплывающее уведомление к ответу на нажатие: уходит вместе с показом
@@ -152,13 +160,21 @@ class Ctx:
     @classmethod
     def from_message(cls, message: Any, **kw: Any) -> "Ctx":
         user = getattr(message, "from_user", None)
-        return cls(message.bot, user.id if user else None, message.chat.id, message=message, **kw)
+        return cls(
+            message.bot,
+            user.id if user else None,
+            message.chat.id,
+            message=message,
+            username=getattr(user, "username", None) if user else None,
+            **kw,
+        )
 
     @classmethod
     def from_callback(cls, callback: Any, **kw: Any) -> "Ctx":
         msg = callback.message
         chat_id = msg.chat.id if msg is not None else callback.from_user.id
-        return cls(callback.bot, callback.from_user.id, chat_id, callback=callback, **kw)
+        user = callback.from_user
+        return cls(callback.bot, user.id, chat_id, callback=callback, username=getattr(user, "username", None), **kw)
 
     # --- данные / права
     @property
@@ -187,10 +203,19 @@ class Ctx:
         owner = config.owner_id()
         return owner is not None and self.user_id == owner
 
+    @property
+    def is_tester(self) -> bool:
+        return self.role == access.TESTER
+
+    @property
+    def can_learn(self) -> bool:
+        """Уроки: владелец и тестер (у тестера — свой прогресс)."""
+        return self.role in (access.OWNER, access.TESTER)
+
     async def require_owner(self) -> bool:
         if self.is_owner:
             return True
-        await self.answer("Нет доступа", alert=True)
+        await self.answer(access.TESTER_DENIED if self.is_tester else "Нет доступа", alert=True)
         return False
 
     # --- ответы

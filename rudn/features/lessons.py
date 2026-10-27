@@ -606,7 +606,8 @@ def _int(raw: str | None) -> int | None:
 
 
 async def on_lessons(ctx: Ctx, args: list[str]) -> None:
-    if not await ctx.require_owner():
+    if not ctx.can_learn:  # владелец и тестер (у тестера свой прогресс в access.json)
+        await ctx.answer("Нет доступа", alert=True)
         return
     action = args[0] if args else ""
     if action in ("", "x"):
@@ -741,7 +742,7 @@ async def on_answer_text(ctx: Ctx, text: str) -> None:
 def _in_lesson(message: Message) -> bool:
     user = getattr(message, "from_user", None)
     state = pending.get(user.id) if user else None
-    return bool(state and state.name == STATE and Ctx.from_message(message).is_owner)
+    return bool(state and state.name == STATE and Ctx.from_message(message).can_learn)
 
 
 router = Router(name="lessons-input")
@@ -782,7 +783,7 @@ def _assignment(data: dict, lessons: list[content.Lesson]) -> str:
 
 def summary(ctx: Ctx) -> list[str]:
     """На главном — только задание на сегодня (а не весь объём)."""
-    if not ctx.is_owner or not content.all_lessons():
+    if not ctx.can_learn or not content.all_lessons():
         return []
     data = ctx.data
     plan = build_plan(data)
@@ -816,7 +817,7 @@ def startup(target: Any) -> None:
 feature = Feature(
     name="lessons",
     callbacks={PREFIX: on_lessons},
-    menu=[MenuButton("📚 Уроки", PREFIX, order=32, row="subjects", owner_only=True)],
+    menu=[MenuButton("📚 Уроки", PREFIX, order=32, row="subjects")],
     summary=summary,
     summary_order=45,
     text_states={STATE: on_answer_text},

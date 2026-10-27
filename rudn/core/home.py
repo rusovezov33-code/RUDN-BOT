@@ -48,6 +48,8 @@ def home_text(ctx: Ctx) -> str:
         f"🎓 <b>РУДН</b> · {escape(timeutil.fmt_day(today))}",
         f"{timeutil.week_label(timeutil.week_type(today)).capitalize()} неделя",
     ]
+    if ctx.is_tester:
+        lines.append("👀 <i>Режим тестера: только просмотр</i>")
     for summary in REGISTRY.summaries():
         try:
             part = summary(ctx)

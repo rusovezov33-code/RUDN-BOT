@@ -21,7 +21,7 @@ from aiogram.types import (
     Message,
 )
 
-from . import config, home, pending, timeutil
+from . import access, config, home, pending, testers, timeutil
 from .registry import REGISTRY, CommandSpec, Registry
 from .storage import store
 from .ui import Ctx
@@ -38,6 +38,7 @@ def build_registry(feature_modules: list[str] | None = None, registry: Registry 
 
         feature_modules = FEATURES
     registry.add(home.feature)
+    registry.add(testers.feature)
     for name in feature_modules:
         module = importlib.import_module(f"rudn.features.{name}")
         registry.add(module.feature)
@@ -57,9 +58,28 @@ def run_startup_hooks(registry: Registry = REGISTRY, target: Any = None) -> None
             log.exception("on_startup %s failed", feature.name)
 
 
+async def guard_message(ctx: Ctx, message: Message, command: str | None) -> bool:
+    """Центральная проверка доступа для сообщений. True — можно обрабатывать дальше.
+    Чужим бот не показывает ничего; на /start — запрос доступа владельцу."""
+    if ctx.role == access.OWNER:
+        return True
+    if ctx.role is None:
+        if command == "start":
+            await testers.stranger_start(ctx, getattr(message, "from_user", None))
+        return False
+    if command is not None and command not in access.TESTER_COMMANDS:
+        await ctx.delete_incoming()
+        ctx.clear_pending()
+        await home.screen_home(ctx, notice=access.TESTER_DENIED)
+        return False
+    return True
+
+
 def _command_handler(spec: CommandSpec):
     async def handler(message: Message) -> None:
         ctx = Ctx.from_message(message)
+        if not await guard_message(ctx, message, spec.name):
+            return
         await ctx.delete_incoming()
         if spec.name != "cancel" and ctx.pending() is not None:
             # любая команда прерывает незаконченный ввод — иначе следующий текст
@@ -78,6 +98,8 @@ def _command_handler(spec: CommandSpec):
 
 async def on_unknown_command(message: Message) -> None:
     ctx = Ctx.from_message(message)
+    if ctx.role is None:
+        return
     await ctx.delete_incoming()
     had = ctx.pending() is not None
     await home.screen_home(ctx, notice=home.CANCELLED if had else None)
@@ -85,6 +107,8 @@ async def on_unknown_command(message: Message) -> None:
 
 async def on_text(message: Message) -> None:
     ctx = Ctx.from_message(message)
+    if ctx.role is None:
+        return
     ctx.defer_save = True
     try:
         await _on_text(ctx, message)
@@ -98,7 +122,7 @@ async def on_text(message: Message) -> None:
 async def _on_text(ctx: Ctx, message: Message) -> None:
     expired = pending.is_expired(ctx.user_id)
     state = ctx.pending()
-    if state is not None and ctx.is_owner:
+    if state is not None and (ctx.is_owner or (ctx.is_tester and state.name in access.TESTER_TEXT_STATES)):
         found = REGISTRY.text_states.get(state.name)
         if found:
             ctx.edit_live = True
@@ -149,6 +173,12 @@ async def on_callback(callback: CallbackQuery) -> None:
     parts = main.split(":")
     ctx = Ctx.from_callback(callback, args=parts[1:], back=back or None)
     ctx.defer_save = True
+    if ctx.role is None:
+        await ctx.answer()  # чужим — ничего, только гасим «часики»
+        return
+    if ctx.role == access.TESTER and not access.tester_may(parts[0], ctx.args):
+        await ctx.answer(access.TESTER_DENIED, alert=True)
+        return
     state = ctx.pending()
     if state is not None and parts[0] not in state.data.get("keep", ()):
         ctx.clear_pending()

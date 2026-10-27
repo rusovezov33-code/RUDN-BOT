@@ -174,10 +174,11 @@ def test_menu_button_owner_only(use_data):
     press(bot, "home")
     assert "ls" in callbacks(screen(bot).markup)
     assert "📚 Уроки" in [b.text for b in buttons(screen(bot).markup)]
-    press(bot, "home", user_id=222)
-    assert "ls" not in callbacks(screen(bot).markup)
-    cb = press(bot, "ls", user_id=222)
-    assert cb.answers[0] == ("Нет доступа", True)
+    press(bot, "home", user_id=222)  # тестер: уроки есть (свой прогресс)
+    assert "ls" in callbacks(screen(bot).markup)
+    calls = len(bot.calls)
+    cb = press(bot, "ls", user_id=333)  # чужой: ничего
+    assert cb.answers[0] == (None, False) and len(bot.calls) == calls
 
 
 def test_list_deadline_first_and_hint(use_data):
@@ -226,8 +227,8 @@ def test_home_summary(use_data):
     press(bot, "ls:u:lat-01")
     press(bot, "home")
     assert "📚 Завтра: Латынь — урок 1 (≈15 мин)" in screen(bot).text
-    press(bot, "home", user_id=222)
-    assert "📚" not in screen(bot).text
+    press(bot, "home", user_id=222)  # тестер: свой план, владельца прогресс не виден
+    assert "📚 Завтра: Латынь — урок 1" in screen(bot).text
 
 
 # ---------------------------------------------------------------- урок в одном сообщении

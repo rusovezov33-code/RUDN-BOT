@@ -319,7 +319,7 @@ async def screen_service(ctx: Ctx) -> None:
         "Восстановить базу: пришли файл <code>data.json</code> документом.",
         "Добавить файл в предмет: пришли файл документом.",
     ]
-    rows = [[b("💾 Скачать бэкап", "adm:bk")], nav()]
+    rows = [[b("💾 Скачать бэкап", "adm:bk"), b("👥 Тестеры", "acc:l")], nav()]
     await ctx.show("\n".join(lines), rows)
 
 

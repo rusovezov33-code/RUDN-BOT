@@ -293,7 +293,7 @@ def test_delete_reminder(use_data):
     cb = press(bot, "evd:2026-10-26:0:y")
     assert cb.answers[0] == ("Напоминание уже удалено", True)
     cb = press(bot, "evd:2026-10-26:0", user_id=222)
-    assert cb.answers[0][0] == "Нет доступа"
+    assert cb.answers[0][0] == "👀 Режим тестера: изменения недоступны"
 
 
 # --- кривые даты в callback_data

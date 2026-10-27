@@ -15,7 +15,7 @@ os.environ.pop("BOT_TOKEN", None)
 for key in ("PUBLIC_BASE_URL", "RAILWAY_PUBLIC_DOMAIN", "RAILWAY_STATIC_URL"):
     os.environ.pop(key, None)
 
-from rudn.core import pending, timeutil  # noqa: E402
+from rudn.core import access, pending, timeutil  # noqa: E402
 from rudn.core.app import build_registry  # noqa: E402
 from rudn.core.storage import store  # noqa: E402
 from rudn.core.ui import LIVE_MENU  # noqa: E402
@@ -47,7 +47,12 @@ LEGACY = {
 SOURCES = {"live": LIVE_BACKUP, "rudn_bot": RUDN_BOT, "repo": REPO_DATA}
 
 
+TESTER_ID = 222  # в старых тестах «не владелец» — это одобренный тестер
+STRANGER_ID = 333  # чужой: бот ему ничего не показывает
+
+
 def reset_state():
+    access.ACCESS.reset()
     pending._states.clear()
     LIVE_MENU.clear()
     store._data = None
@@ -59,6 +64,7 @@ def frozen(monkeypatch, tmp_path):
     reset_state()
     timeutil.set_now(datetime(2026, 10, 26, 12, 0, tzinfo=timeutil.MSK))
     monkeypatch.setenv("DATA_FILE", str(tmp_path / "data.json"))
+    access.ACCESS.data["testers"][str(TESTER_ID)] = {"name": "Тестер", "username": None, "added": "2026-10-26 12:00"}
     yield
     timeutil.set_now(None)
     reset_state()
