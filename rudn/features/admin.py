@@ -19,7 +19,6 @@ from rudn.core.ui import Ctx, b, cancel_row, chunk, maybe, nav, row_of, short
 KIND_BUTTONS = [
     ("hw", "📝 Д/з"),
     ("lab", "🧪 Лаба / практика"),
-    ("ctrl", "✍️ Контрольная / тест"),
     ("exam", "🎓 Экзамен"),
     ("credit", "✅ Зачёт"),
     ("ev", "🔔 Напоминание"),
@@ -69,7 +68,7 @@ async def screen_kinds(ctx: Ctx, si: int | None) -> None:
 async def screen_pick_subject(ctx: Ctx) -> None:
     state = _state(ctx)
     data = ctx.data
-    buttons = [b(short(tu.short_name(s.get("name") or "?"), 26), f"add:su:{i}") for i, s in enumerate(data.get("subjects") or [])]
+    buttons = [b(short(s.get("name") or "?", 26), f"add:su:{i}") for i, s in enumerate(data.get("subjects") or [])]
     rows = chunk(buttons, 2)
     rows.append(cancel_row())
     await ctx.show("\n".join(_header(state.data, data) + ["", "Выбери предмет:"]), rows)
@@ -100,7 +99,7 @@ async def screen_pick_date(ctx: Ctx, page: int | None = None, error: str | None 
     lines = _header(info, data) + [""]
     if error:
         lines.append(f"⚠️ {error}")
-    quick_mode = page is None and info.get("kind") in ("hw", "lab", "ctrl") and isinstance(si, int)
+    quick_mode = page is None and info.get("kind") in ("hw", "lab") and isinstance(si, int)
     if quick_mode:
         name = data["subjects"][si]["name"]
         lessons = [day for day in tu.upcoming_lesson_dates(name, today + timedelta(days=1), 60)][:6]
@@ -192,8 +191,8 @@ def save_item(ctx: Ctx, info: dict, text: str) -> tuple[str, list[list]]:
     details = ", ".join(escape(str(item[k])) for k in ("time", "place") if item.get(k))
     if details:
         lines.append(f"🕘 {details}")
-    if tasks.body_text(item):
-        lines.append(escape(tasks.body_text(item)))
+    if item.get("text"):
+        lines.append(escape(item["text"]))
     more = f"add:s:{si}" if isinstance(si, int) else "add"
     target = maybe("🎓 Экзамены", "ex") if kind == "exam" else maybe("🔥 Дедлайны", "dl")
     return "\n".join(lines), [row_of(b("➕ Ещё", more), target), nav(f"s:{si}" if isinstance(si, int) else None)]
@@ -211,8 +210,6 @@ async def on_add(ctx: Ctx, args: list[str]) -> None:
         if not 0 <= si < len(ctx.data.get("subjects") or []):
             await ctx.answer("Предмет не найден", alert=True)
             return
-        # сразу гасим «часики» с понятным текстом — кнопка не выглядит «мёртвой»
-        ctx.toast = f"➕ {tu.short_name(ctx.data['subjects'][si].get('name') or '')}"
         await screen_kinds(ctx, si)
         return
     state = _state(ctx)
@@ -319,7 +316,7 @@ async def screen_service(ctx: Ctx) -> None:
         "Восстановить базу: пришли файл <code>data.json</code> документом.",
         "Добавить файл в предмет: пришли файл документом.",
     ]
-    rows = [[b("💾 Скачать бэкап", "adm:bk"), b("👥 Тестеры", "acc:l")], nav()]
+    rows = [[b("💾 Скачать бэкап", "adm:bk")], nav()]
     await ctx.show("\n".join(lines), rows)
 
 
@@ -395,7 +392,7 @@ async def handle_document(message: Message) -> None:
         await ctx.show(text, [[b("✅ Заменить", "rs:yes"), b("❌ Отмена", "x")]])
         return
     ctx.wait_text("upload", keep=("up",), file_id=document.file_id, file_name=file_name, mime=document.mime_type)
-    buttons = [b(short(tu.short_name(s.get("name") or "?"), 26), f"up:s:{i}") for i, s in enumerate(ctx.data.get("subjects") or [])]
+    buttons = [b(short(s.get("name") or "?", 26), f"up:s:{i}") for i, s in enumerate(ctx.data.get("subjects") or [])]
     rows = chunk(buttons, 2)
     rows.append(cancel_row())
     await ctx.show(f"📎 Файл <b>{escape(file_name)}</b> получен.\nВ какой предмет?", rows)
@@ -423,7 +420,7 @@ async def on_upload(ctx: Ctx, args: list[str]) -> None:
             await ctx.show(f"📎 <b>{escape(info['file_name'])}</b>\nПредмет: <b>{escape(subject['name'])}</b>\nВыбери раздел:", rows)
             return
         if args[0] == "back":
-            buttons = [b(short(tu.short_name(s.get("name") or "?"), 26), f"up:s:{i}") for i, s in enumerate(data.get("subjects") or [])]
+            buttons = [b(short(s.get("name") or "?", 26), f"up:s:{i}") for i, s in enumerate(data.get("subjects") or [])]
             await ctx.show(f"📎 <b>{escape(info['file_name'])}</b>\nВ какой предмет?", chunk(buttons, 2) + [cancel_row()])
             return
         if args[0] == "sec":

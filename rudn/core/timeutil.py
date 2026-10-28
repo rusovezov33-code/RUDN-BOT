@@ -63,12 +63,6 @@ def canon_name(value: str) -> str:
     return config.subjects().aliases.get(key, key)
 
 
-def short_name(value: str) -> str:
-    """Короткое имя предмета для кнопок и списков (config/subjects.json → short_names)."""
-    names = config.subjects().short_names
-    return names.get(norm_name(value)) or names.get(canon_name(value)) or str(value or "")
-
-
 def subjects_match(left: str, right: str) -> bool:
     a, b = canon_name(left), canon_name(right)
     return bool(a) and a == b

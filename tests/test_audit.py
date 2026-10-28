@@ -119,7 +119,7 @@ def test_thursday_med_informatics_single_lesson():
     moment = datetime(2026, 10, 29, 13, 25, tzinfo=tu.MSK)
     assert tu.lesson_state(thu[0].time, moment) == "now"
     tue = tu.lessons_for(date(2026, 10, 27))[0]
-    assert tue.subject == "Латинский язык" and "подгруппа А" in tue.place
+    assert tue.subject == "Латинский язык" and "подгруппа А — верхняя неделя, Б — нижняя" in tue.place
 
 
 # --- #9: обрезка длинной строки без двойного экранирования
@@ -214,8 +214,7 @@ def test_cancel_command_still_reports(use_data):
         press(bot, data)
     msg = FakeMessage(bot, "/cancel")
     run(app._command_handler(REGISTRY.commands["cancel"][1])(msg))
-    shot = bot.last_screen().text
-    assert pending.get(111) is None and shot.startswith("✖️ <i>Ввод отменён</i>") and "🎓 <b>РУДН" in shot
+    assert pending.get(111) is None and bot.last_screen().text.startswith("🎓 <b>РУДН")
 
 
 # --- загрузка файлов
@@ -293,7 +292,7 @@ def test_delete_reminder(use_data):
     cb = press(bot, "evd:2026-10-26:0:y")
     assert cb.answers[0] == ("Напоминание уже удалено", True)
     cb = press(bot, "evd:2026-10-26:0", user_id=222)
-    assert cb.answers[0][0] == "👀 Режим тестера: изменения недоступны"
+    assert cb.answers[0][0] == "Нет доступа"
 
 
 # --- кривые даты в callback_data
@@ -401,17 +400,3 @@ def test_bad_link_urls_are_hidden(use_data):
     assert [btn.url for btn in buttons(bot.last_screen().markup) if btn.url] == ["https://rudn.ru"]
     press(bot, "s:3:5")
     assert all(ui.is_url(btn.url) for btn in buttons(bot.last_screen().markup) if btn.url)
-
-
-# --- подгруппа А по латыни: пара 9:00 во вторник — только по верхним неделям
-def test_latin_subgroup_a_only():
-    upper = [l for l in tu.lessons_for(date(2026, 10, 27)) if l.subject == "Латинский язык"]
-    lower = [l for l in tu.lessons_for(date(2026, 11, 3)) if l.subject == "Латинский язык"]
-    assert any(l.time.startswith("9:00") or l.time.startswith("09:00") for l in upper)
-    assert not any(l.time.startswith(("9:00", "09:00")) for l in lower)
-    assert lower, "пара 10:30 в нижнюю неделю остаётся"
-    import json
-    from pathlib import Path
-
-    raw = (Path(__file__).resolve().parents[1] / "config" / "schedule.json").read_text(encoding="utf-8")
-    assert "Б —" not in raw and "подгруппа Б" not in raw

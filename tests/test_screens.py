@@ -46,7 +46,7 @@ async def crawl(bot, user_id, limit=500):
         if data in seen:
             continue
         seen.add(data)
-        if data.startswith(("rs:yes", "acc:rv", "acc:no")):  # не отключать тестера посреди обхода
+        if data.startswith(("rs:yes",)):
             continue
         before = len(bot.calls)
         await app.on_callback(FakeCallback(bot, data, user_id=user_id))
@@ -82,9 +82,8 @@ def test_crawl_all_screens(use_data, caplog, user_id):
     assert not errors, [r.getMessage() for r in errors]
     prefixes = {s.split(":")[0].split("|")[0] for s in seen}
     expected = {"home", "d", "w", "dl", "ex", "subs", "s", "p"}
-    expected |= {"ls"}  # уроки: у тестера свой прогресс
     if user_id == 111:
-        expected |= {"add", "adm", "acc"}
+        expected |= {"add", "adm"}
     assert expected <= prefixes, expected - prefixes
     assert len(seen) > 60
 
@@ -211,7 +210,7 @@ def test_non_owner_cannot_add(use_data):
     bot = FakeBot()
     cb = FakeCallback(bot, "add", user_id=222)
     run(app.on_callback(cb))
-    assert cb.answers[0] == ("👀 Режим тестера: изменения недоступны", True)
+    assert cb.answers[0] == ("Нет доступа", True)
     run(app.on_text(FakeMessage(bot, "текст", user_id=222)))
     assert store.data["homework"] == []
 

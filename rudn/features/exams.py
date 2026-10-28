@@ -25,14 +25,13 @@ def countdown(due: date | None, today: date) -> str:
 def exam_lines(item: dict, data: dict, today: date) -> list[str]:
     due = tasks.item_date(item)
     subject = tasks.subject_name(item, data) or "—"
-    when = (tu.fmt_dm(due) if due else "—") + tasks.date_mark(item)
+    when = tu.fmt_dm(due) if due else "—"
     lines = [f"• <b>{when}</b> · {countdown(due, today)} — {escape(tasks.kind_label(item))} · <b>{escape(subject)}</b>"]
     details = ", ".join(escape(str(item[key])) for key in ("time", "place") if item.get(key))
     if details:
         lines.append(f"   🕘 {details}")
-    body = tasks.body_text(item)
-    if body:
-        lines.append(f"   {escape(body)}")
+    if item.get("text"):
+        lines.append(f"   {escape(str(item['text']))}")
     return lines
 
 
@@ -44,7 +43,7 @@ async def render(ctx: Ctx, past: bool = False, undo: dict | None = None) -> None
     lines = [title, ""]
     rows: list[list] = []
     if undo is not None and ctx.is_owner:
-        label = f"{tu.short_name(tasks.subject_name(undo, data))} {tu.fmt_short(tasks.item_date(undo)) if tasks.item_date(undo) else ''}"
+        label = f"{tasks.subject_name(undo, data)} {tu.fmt_short(tasks.item_date(undo)) if tasks.item_date(undo) else ''}"
         rows.append([b(f"↩ Вернуть: {short(label, 30)}", f"ex:un:{undo['id']}:u")])
     if not items:
         lines.append("Пока пусто." if past else "Ближайших экзаменов и зачётов нет.")
@@ -53,14 +52,11 @@ async def render(ctx: Ctx, past: bool = False, undo: dict | None = None) -> None
     for item in items[:30]:
         lines.extend(exam_lines(item, data, today))
         if ctx.is_owner:
-            label = f"{tu.short_name(tasks.subject_name(item, data))} {tu.fmt_short(tasks.item_date(item)) if tasks.item_date(item) else ''}"
+            label = f"{tasks.subject_name(item, data)} {tu.fmt_short(tasks.item_date(item)) if tasks.item_date(item) else ''}"
             if past:
-                rows.append([b(f"↩ {short(label, 24)}", f"ex:un:{item['id']}"), b("🗑 Удалить", f"ex:rm:{item['id']}")])
+                rows.append([b(f"↩ {short(label, 30)}", f"ex:un:{item['id']}"), b("🗑", f"ex:rm:{item['id']}")])
             else:
-                rows.append([b(f"✅ Сдал: {short(label, 30)}", f"ex:ok:{item['id']}"), b("✏️", f"it:o:{item['id']}:e")])
-    if items and ctx.is_owner and not past:
-        lines.append("")
-        lines.append("✅ — сдал · ✏️ — открыть: дата, текст, 🗑 удалить.")
+                rows.append([b(f"✅ Сдал: {short(label, 34)}", f"ex:ok:{item['id']}")])
     if past:
         rows.append(nav("ex"))
     else:
@@ -85,13 +81,13 @@ async def on_exams(ctx: Ctx, args: list[str]) -> None:
             await render(ctx, past=action != "ok")
             return
         if action == "rm":
-            tasks.delete_item(ctx.data, item)
+            ctx.data["homework"].remove(item)
             ctx.save()
-            ctx.toast = "🗑 Удалено"
+            await ctx.answer("🗑 Удалено")
         else:
             tasks.mark_done(item, action == "ok")
             ctx.save()
-            ctx.toast = "🎉 Отмечено как сдано" if action == "ok" else "↩ Вернул"
+            await ctx.answer("🎉 Отмечено как сдано" if action == "ok" else "↩ Вернул")
         if action == "ok":
             await render(ctx, undo=item)
         else:
@@ -114,8 +110,8 @@ def summary(ctx: Ctx) -> list[str]:
         return []
     item = items[0]
     due = tasks.item_date(item)
-    subject = tu.short_name(tasks.subject_name(item, data)) or "—"
-    when = (tu.fmt_dm(due) if due else "—") + tasks.date_mark(item)
+    subject = tasks.subject_name(item, data) or "—"
+    when = tu.fmt_dm(due) if due else "—"
     return [
         f"🎓 Ближайший: {escape(tasks.kind_label(item))} · <b>{escape(short(subject, 40))}</b> — {when} ({countdown(due, today)})"
     ]
