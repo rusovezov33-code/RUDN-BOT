@@ -212,7 +212,7 @@ def test_tester_reads_every_section(use_data):
     press(bot, "home", user_id=TESTER_ID)
     home_cbs = callbacks(bot.last_screen().markup)
     assert "add" not in home_cbs and "adm" not in home_cbs
-    assert {"d:t", "d:tm", "w:now", "dl", "ex", "subs", "sc", "ls"} <= set(home_cbs)
+    assert {"d:tm", "w:now", "nt", "dl", "ex", "subs", "sc", "ls"} <= set(home_cbs) and "d:t" not in home_cbs
     key = next(c for c in callbacks((press(bot, "sc", user_id=TESTER_ID), bot.last_screen())[1].markup) if c.startswith("sc:c:"))
     for data_ in ["d:t", "d:tm", "w:now", "dl", "dl:h", "ex", "ex:p", "subs", "s:3", "s:3:0", key, "p:0", "ls", "ls:A"]:
         cb = press(bot, data_, user_id=TESTER_ID)

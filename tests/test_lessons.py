@@ -13,7 +13,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Update
 
 from conftest import LIVE_BACKUP
-from fakes import FakeBot, FakeCallback, FakeMessage, buttons, callbacks
+from fakes import FakeBot, FakeCallback, FakeMessage, buttons, callbacks, summary_text
 from rudn import lessons as content
 from rudn.core import app, home, pending, timeutil as tu
 from rudn.core.registry import REGISTRY
@@ -213,22 +213,19 @@ def test_home_summary(use_data):
     use_data(LIVE_BACKUP)
     bot = FakeBot()
     press(bot, "home")
-    # 26.10 (пн, 2 пары): только задание на сегодня, без общего объёма
-    assert "📚 Сегодня: Латынь — уроки 1, 2 (≈29 мин)" in screen(bot).text
-    assert "0/8" not in screen(bot).text
+    assert "📚" not in screen(bot).text  # на главном только расписание и свои заметки
+    # сводка уроков (без главного): 26.10 (пн, 2 пары) — только задание на сегодня
+    assert "📚 Сегодня: Латынь — уроки 1, 2 (≈29 мин)" in summary_text(feat)
+    assert "0/8" not in summary_text(feat)
     press(bot, "ls:m:lat-01")
-    press(bot, "home")
-    assert "📚 Сегодня: Латынь — урок 2 (≈14 мин)" in screen(bot).text
+    assert "📚 Сегодня: Латынь — урок 2 (≈14 мин)" in summary_text(feat)
     press(bot, "ls:m:lat-02")
-    press(bot, "home")
-    assert "📚 Сегодня: ✅ уроки на сегодня сделаны" in screen(bot).text
+    assert "📚 Сегодня: ✅ уроки на сегодня сделаны" in summary_text(feat)
     tu.set_now(datetime(2026, 10, 26, 22, 0, tzinfo=tu.MSK))  # вечер: показываем завтра
     press(bot, "ls:u:lat-02")
     press(bot, "ls:u:lat-01")
-    press(bot, "home")
-    assert "📚 Завтра: Латынь — урок 1 (≈15 мин)" in screen(bot).text
-    press(bot, "home", user_id=222)  # тестер: свой план, владельца прогресс не виден
-    assert "📚 Завтра: Латынь — урок 1" in screen(bot).text
+    assert "📚 Завтра: Латынь — урок 1 (≈15 мин)" in summary_text(feat)
+    assert "📚 Завтра: Латынь — урок 1" in summary_text(feat, user_id=222)  # тестер: свой план
 
 
 # ---------------------------------------------------------------- урок в одном сообщении

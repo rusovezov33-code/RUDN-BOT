@@ -85,3 +85,11 @@ def fake_document(bot, name, content=b"x", mime="application/octet-stream"):
     file_id = f"FILE-{next(_ids)}"
     bot.files[file_id] = content
     return SimpleNamespace(file_id=file_id, file_name=name, file_size=len(content), mime_type=mime)
+
+
+def summary_text(module, user_id=111):
+    """Сводка фичи (её summary) как текст — сводки, которых больше нет на главном."""
+    from rudn.core.ui import Ctx
+
+    ctx = Ctx(FakeBot(), user_id, user_id)
+    return "\n".join(module.feature.summary(ctx))

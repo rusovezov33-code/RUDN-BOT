@@ -8,6 +8,7 @@
 FEATURES: list[str] = [
     "soon",
     "schedule",
+    "notes",
     "deadlines",
     "exams",
     "subjects",

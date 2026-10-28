@@ -173,8 +173,8 @@ def test_add_exam_with_typed_date(use_data):
     item = store.data["homework"][-1]
     assert item["kind"] == "exam" and item["exam_type"] == "exam"
     assert item["date"] == "2027-01-15" and item["time"] == "10:00" and item["place"] == "ЕГФ ауд. 375"
-    run(app.on_callback(FakeCallback(bot, "home")))
-    assert "Ближайший" in bot.last_screen().text
+    run(app.on_callback(FakeCallback(bot, "ex")))
+    assert "15.01" in bot.last_screen().text
 
 
 def test_add_event(use_data):

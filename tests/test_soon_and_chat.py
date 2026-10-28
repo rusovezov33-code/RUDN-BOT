@@ -3,7 +3,7 @@ import asyncio
 from datetime import date, datetime
 
 from conftest import LIVE_BACKUP
-from fakes import FakeBot, FakeCallback, buttons
+from fakes import FakeBot, FakeCallback, buttons, summary_text
 from rudn import tuis
 from rudn.core import app, tasks, timeutil as tu
 from rudn.features import soon
@@ -86,7 +86,7 @@ def test_soon_items_window_and_format(use_data):
     assert soon.split_topics({"text": "КР1 «Текстовый процессор» + доп. задания"})[1] == "Текстовый процессор"
 
 
-def test_soon_on_home_compact_and_full_in_deadlines(use_data):
+def test_soon_compact_summary_and_full_in_deadlines(use_data):
     data = use_data(LIVE_BACKUP)
     at_today()
     tuis.seed_events(data, TODAY)
@@ -96,8 +96,8 @@ def test_soon_on_home_compact_and_full_in_deadlines(use_data):
     bot = FakeBot()
     run(app.on_callback(FakeCallback(bot, "home")))
     home = bot.last_screen()
-    text = home.text
-    block = text.split("\n\n")[1]
+    assert "Скоро" not in home.text  # главный: только расписание и свои заметки
+    block = summary_text(soon)
     assert block.startswith("⏰ <b>Скоро</b> — 14 дней (8):")
     body = block.split("\n")[1:]
     assert len([line for line in body if not line.startswith("   …")]) <= 5

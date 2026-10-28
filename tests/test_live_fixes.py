@@ -5,7 +5,8 @@ import re
 import pytest
 
 from conftest import LIVE_BACKUP
-from fakes import FakeBot, FakeCallback, FakeMessage, buttons, callbacks
+from fakes import FakeBot, FakeCallback, FakeMessage, buttons, callbacks, summary_text
+from rudn.features import scores as scores_feat
 from rudn import tuis
 from rudn.core import app, home, pending, tasks, timeutil as tu
 from rudn.core.registry import REGISTRY
@@ -103,15 +104,15 @@ def test_global_deadlines_point_to_exams(live):
 # 3 — нули не показываем в сводках
 def test_zero_score_hidden_in_summaries(live):
     tuis.set_score(store.data, "chem", "labs", 0)
-    press(live, "home")
-    assert "Баллы:" not in live.last_screen().text
+    assert "Баллы:" not in summary_text(scores_feat)
     press(live, f"s:{subject_index('Химия')}")
     assert "мои баллы" not in live.last_screen().text
     press(live, "sc:c:chem")
     assert "Лабораторные работы: <b>0</b>" in live.last_screen().text  # сам ввод виден
     tuis.set_score(store.data, "chem", "labs", 2.5)
+    assert "Баллы: Химия 2,5" in summary_text(scores_feat)
     press(live, "home")
-    assert "Баллы: Химия 2,5" in live.last_screen().text
+    assert "Баллы" not in live.last_screen().text  # на главном баллов нет
 
 
 # 4 — «Ещё можно набрать»

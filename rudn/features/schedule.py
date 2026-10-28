@@ -215,38 +215,22 @@ async def on_event_delete(ctx: Ctx, args: list[str]) -> None:
 
 
 def summary(ctx: Ctx) -> list[str]:
+    """Главный экран: расписание именно на сегодняшнее число (МСК), без сроков и напоминаний."""
     moment = tu.now()
-    today = moment.date()
-    lessons = tu.lessons_for(today)
-    lines: list[str] = []
-    ongoing = [l for l in lessons if tu.lesson_state(l.time, moment) == "now"]
-    future = [l for l in lessons if tu.lesson_state(l.time, moment) == "future"]
-    place = lambda l: f" · {escape(l.place)}" if l.place else ""  # noqa: E731
-    for lesson in ongoing[:1]:
-        left = tu.minutes_until(lesson.time, moment, end=True) or 0
-        lines.append(f"▶️ Сейчас: <b>{escape(lesson.subject)}</b>{place(lesson)} · ещё {tu.human_minutes(left)}")
-    if future:
-        lesson = future[0]
-        wait = tu.minutes_until(lesson.time, moment) or 0
-        lines.append(
-            f"⏭ Далее: <b>{escape(lesson.time.split('–')[0])} {escape(lesson.subject)}</b>{place(lesson)}"
-            f" · через {tu.human_minutes(wait)}"
-        )
-        if len(future) > 1:
-            lines.append(f"   ещё пар сегодня: {len(future) - 1}")
-    if not ongoing and not future:
-        lines.append("✅ Пары на сегодня закончились" if lessons else "😌 Сегодня пар нет")
-        nxt = next_study_day(today)
-        if nxt:
-            first = tu.lessons_for(nxt)[0]
-            when = "Завтра" if nxt == today + timedelta(days=1) else tu.fmt_dm(nxt)
-            lines.append(f"📅 {when}: первая пара {escape(first.time.split('–')[0])} {escape(first.subject)}{place(first)}")
-    events = tasks.events_on(ctx.data, today)
-    if events:
-        lines.append("🔔 <b>Сегодня:</b>")
-        for item in events[:3]:
-            for index, part in enumerate(str(item.get("text") or "").split("\n")):
-                lines.append(("• " if index == 0 else "  ") + escape(short(part, 120)))
+    lessons = tu.lessons_for(moment.date())
+    if not lessons:
+        return ["😌 Сегодня пар нет"]
+    lines = ["📅 <b>Расписание на сегодня:</b>"]
+    for lesson in lessons:
+        state = tu.lesson_state(lesson.time, moment)
+        name = escape(lesson.subject)
+        place = f" · {escape(lesson.place)}" if lesson.place else ""
+        if state == "now":
+            lines.append(f"▶️ <b>{escape(lesson.time)} {name}</b>{place} ← сейчас")
+        elif state == "past":
+            lines.append(f"▫️ <s>{escape(lesson.time)}</s> {name}")
+        else:
+            lines.append(f"• {escape(lesson.time)} {name}{place}")
     return lines
 
 
@@ -266,7 +250,6 @@ feature = Feature(
     name="schedule",
     callbacks={"d": on_day, "w": on_week, "evd": on_event_delete},
     menu=[
-        MenuButton("📅 Сегодня", "d:t", order=10, row="sched"),
         MenuButton("⏭ Завтра", "d:tm", order=11, row="sched"),
         MenuButton("🗓 Неделя", "w:now", order=12, row="sched"),
     ],

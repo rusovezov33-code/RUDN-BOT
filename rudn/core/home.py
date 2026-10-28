@@ -10,6 +10,10 @@ from .ui import Ctx, b, chunk
 
 log = logging.getLogger(__name__)
 
+# На главном — только расписание на сегодня и свои заметки/напоминания владельца.
+# Сводки остальных фич (⏰ Скоро, дедлайны, экзамены, баллы, уроки) — в их разделах.
+HOME_SUMMARIES = ("schedule", "notes")
+
 
 def menu_buttons(ctx: Ctx) -> list[list]:
     collected: list[MenuButton] = []
@@ -50,7 +54,10 @@ def home_text(ctx: Ctx) -> str:
     ]
     if ctx.is_tester:
         lines.append("👀 <i>Режим тестера: только просмотр</i>")
-    for summary in REGISTRY.summaries():
+    features = sorted(
+        (f for f in REGISTRY.features if f.summary and f.name in HOME_SUMMARIES), key=lambda f: f.summary_order
+    )
+    for summary in (f.summary for f in features):
         try:
             part = summary(ctx)
         except Exception:

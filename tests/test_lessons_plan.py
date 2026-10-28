@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 import pytest
 
 from conftest import LIVE_BACKUP
-from fakes import FakeBot, FakeCallback, buttons, callbacks
+from fakes import FakeBot, FakeCallback, buttons, callbacks, summary_text
 from rudn import lessons as content
 from rudn import lessons_plan as P
 from rudn.core import app, timeutil as tu
@@ -320,8 +320,7 @@ def test_today_screen_evening_27(use_data):
     assert "➕ Взять следующий урок: Латынь 1" in labels
     assert {"🗓 План по дням", "📚 Все уроки", "🏠 Меню"} <= set(labels)
     all_ok(shot.markup)
-    press(bot, "home")
-    assert "📚 Завтра: Латынь — урок 1 (≈15 мин)" in bot.last_screen().text
+    assert "📚 Завтра: Латынь — урок 1 (≈15 мин)" in summary_text(feat)
 
 
 def test_today_screen_28_and_done(use_data):
@@ -336,8 +335,7 @@ def test_today_screen_28_and_done(use_data):
     label = next(x.text for x in buttons(shot.markup) if x.callback_data == "ls:o:lat-01")
     assert label.startswith("🆕 🏛 Латынь 1.") and label.endswith("· ≈15 мин")
     all_ok(shot.markup)
-    press(bot, "home")
-    assert "📚 Сегодня: Латынь — урок 1 (≈15 мин)" in bot.last_screen().text
+    assert "📚 Сегодня: Латынь — урок 1 (≈15 мин)" in summary_text(feat)
     press(bot, "ls:m:lat-01")
     press(bot, "ls")
     shot = bot.last_screen()
@@ -380,8 +378,7 @@ def test_review_day_screen(use_data):
     assert "🔁 Повторение к КР 03.11 (Латынь), ЛР №5 03.11 (Химия)" in shot.text
     assert "ls:v:20261103" in callbacks(shot.markup)
     all_ok(shot.markup)
-    press(bot, "home")
-    assert "📚 Сегодня: 🔁 повторение к КР / ЛР №5 03.11 (≈18 мин)" in bot.last_screen().text
+    assert "📚 Сегодня: 🔁 повторение к КР / ЛР №5 03.11 (≈18 мин)" in summary_text(feat)
     press(bot, "ls:v:20261103")
     shot = bot.last_screen()
     assert "🔁 <b>Повторение к КР 03.11</b>" in shot.text
