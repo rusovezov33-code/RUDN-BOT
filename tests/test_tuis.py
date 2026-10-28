@@ -256,10 +256,10 @@ def test_deadlines_and_exams_show_tuis(use_data):
     bot = FakeBot()
     run(app.on_callback(FakeCallback(bot, "dl")))
     text = bot.last_screen().text
-    assert "✍️" in text and "Рубежный контроль ОРГ" in text and "Табличный процессор" in text
+    assert "✍️" not in text and "Рубежный контроль ОРГ" in text and "Табличный процессор" in text
     run(app.on_callback(FakeCallback(bot, "ex")))
     text = bot.last_screen().text
-    assert "Итоговая контрольная работа" in text and "21.12" in text and "Медицинская информатика" in text
+    assert "Итоговая контрольная работа" in text and "21.12" in text and "Мед. информатика" in text
 
 
 def test_stable_v1_reads_file_with_tuis(use_data, tmp_path, monkeypatch):

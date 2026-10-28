@@ -14,24 +14,15 @@ BUCKET_ICON = {"overdue": "⚠️", "today": "🔥", "tomorrow": "⏰", "week": 
 
 
 def item_line(item: dict, data: dict, today: date, with_subject: bool = True) -> str:
+    """«срок  предмет: текст» — без значков и адресов (подробности — по ✏️)."""
     subject = tu.short_name(tasks.subject_name(item, data)) if with_subject else ""
     who = f"{escape(short(subject, 32))}: " if subject else ""
-    extra = []
-    if item.get("time"):
-        extra.append(escape(str(item["time"])))
-    if item.get("place"):
-        extra.append(escape(str(item["place"])))
-    tail = f" ({', '.join(extra)})" if extra else ""
-    return (
-        f"• <b>{escape(tasks.due_text(item, today))}</b> · {tasks.kind_icon(item)} "
-        f"{who}{escape(item.get('text') or '—')}{tail}"
-    )
+    return f"<b>{escape(tasks.due_text(item, today))}</b>  {who}{escape(short(tasks.plain_text(item) or '—', 70))}"
 
 
 def done_button(item: dict, data: dict, view: str, with_subject: bool = True) -> object:
-    subject = tu.short_name(tasks.subject_name(item, data)) if with_subject else ""
-    label = f"{subject}: {item.get('text') or ''}" if subject else str(item.get("text") or "задание")
-    return b(f"✅ {tasks.kind_icon(item)} {short(label, 38)}", f"dl:ok:{item['id']}:{view}")
+    label = tasks.plain_text(item) or tu.short_name(tasks.subject_name(item, data)) or "задание"
+    return b(f"✅ {short(label, 18)}", f"dl:ok:{item['id']}:{view}")
 
 
 def edit_button(item: dict, view: str) -> object:
@@ -51,32 +42,28 @@ async def render(ctx: Ctx, view: str = "a", undo: dict | None = None) -> None:
     si = parse_view(view)
     rows: list[list] = []
     if undo is not None:
-        rows.append([b(f"↩ Вернуть: {short(undo.get('text') or '', 30)}", f"dl:un:{undo['id']}:{view}")])
+        rows.append([b(f"↩ {short(undo.get('text') or 'Вернуть', 18)}", f"dl:un:{undo['id']}:{view}")])
     if si is not None:
         subjects = data.get("subjects") or []
         if not 0 <= si < len(subjects):
             await ctx.show("Предмет не найден.", [nav("subs")])
             return
-        title = f"📝 <b>Задания · {escape(subjects[si].get('name') or '')}</b>"
+        title = f"<b>Задания · {escape(tu.short_name(subjects[si].get('name') or ''))}</b>"
         items = tasks.open_items(data, tasks.ALL_KINDS, si=si)
         with_subject = False
         back = f"s:{si}"
     else:
-        title = "🔥 <b>Дедлайны</b> — Д/з, лабы, контрольные"
+        title = "✅ <b>Задачи</b>"
         items = tasks.open_items(data)
         with_subject = True
         back = ctx.back or "home"
     lines = [title, ""]
-    if si is None:
-        upcoming = soon.block(data, today, full=True)
-        if upcoming:
-            lines += upcoming + [""]
     groups = tasks.group_deadlines(items, today)
     if not groups:
-        lines.append("✅ Невыполненных заданий нет.")
+        lines.append("Всё сделано.")
     buttons = 0
     for key, header, group in groups:
-        lines.append(f"<b>{header}</b> ({len(group)})")
+        lines.append(f"<b>{header}</b>")
         for item in group:
             lines.append(item_line(item, data, today, with_subject))
             if ctx.is_owner and buttons < MAX_BUTTONS:
@@ -86,20 +73,14 @@ async def render(ctx: Ctx, view: str = "a", undo: dict | None = None) -> None:
     exams_link = None
     if si is None:
         exams = len(tasks.upcoming_exams(data, today))
-        if exams:
-            lines.append(f"🎓 Экзамены и зачёты ({exams}) — отдельно, в «🎓 Экзамены».")
-            exams_link = maybe(f"🎓 Экзамены ({exams})", "ex")
-    if ctx.is_owner and items:
-        lines.append("✅ — сделано · ✏️ — открыть: срок, текст, 🗑 удалить.")
-        if len(items) > MAX_BUTTONS:
-            lines.append(f"Кнопки показаны для первых {MAX_BUTTONS}.")
+        exams_link = maybe(f"🎓 Экзамены {exams}" if exams else "🎓 Экзамены", "ex|dl")
     add = None
     if ctx.is_owner:
         add = maybe("➕ Добавить", f"add:s:{si}" if si is not None else "add")
-    rows.append(row_of(add, b("☑️ Выполненные", f"dl:h:{view}")))
-    if exams_link is not None:
-        rows.append([exams_link])
-    rows.append(nav(back))
+    rows.append(row_of(exams_link, b("☑️ Выполненные", f"dl:h:{view}")))
+    if add is not None:
+        rows.append([add])
+    rows.append(nav(back) if si is not None else [b("⬅ Назад", back)])
     await ctx.show("\n".join(lines).strip(), rows)
 
 
@@ -120,7 +101,7 @@ async def render_history(ctx: Ctx, view: str) -> None:
     ]
     done.sort(key=lambda item: str(item.get("done_at") or item.get("created") or ""), reverse=True)
     done = done[:15]
-    lines = ["☑️ <b>Выполненные</b> (последние 15)", ""]
+    lines = ["☑️ <b>Выполненные</b>", ""]
     rows: list[list] = []
     if not done:
         lines.append("Пока пусто.")
@@ -129,12 +110,10 @@ async def render_history(ctx: Ctx, view: str) -> None:
         if ctx.is_owner:
             rows.append(
                 [
-                    b(f"↩ {short(item.get('text') or tasks.kind_label(item), 26)}", f"dl:un:{item['id']}:{view}"),
+                    b(f"↩ {short(item.get('text') or tasks.kind_label(item), 16)}", f"dl:un:{item['id']}:{view}"),
                     b("🗑 Удалить", f"dl:rm:{item['id']}:{view}"),
                 ]
             )
-    if ctx.is_owner and done:
-        lines.append("\n↩ — вернуть в список, «🗑 Удалить» — удалить навсегда.")
     rows.append(nav(f"dl:{view}" if view != "a" else "dl"))
     await ctx.show("\n".join(lines), rows)
 
@@ -181,12 +160,10 @@ async def on_deadlines(ctx: Ctx, args: list[str]) -> None:
 
 
 def menu_text(ctx: Ctx) -> str:
+    """«✅ Задачи», а число — только если что-то горит (просрочено / сегодня / завтра)."""
     counts = tasks.urgent_counts(ctx.data, tu.today())
-    total = sum(counts.values())
     urgent = counts["overdue"] + counts["today"] + counts["tomorrow"]
-    if not total:
-        return "🔥 Дедлайны"
-    return f"🔥 Дедлайны ({urgent}❗)" if urgent else f"🔥 Дедлайны ({total})"
+    return f"✅ Задачи {urgent}" if urgent else "✅ Задачи"
 
 
 def summary(ctx: Ctx) -> list[str]:
@@ -228,8 +205,11 @@ async def cmd_deadlines(ctx: Ctx) -> None:
 feature = Feature(
     name="deadlines",
     callbacks={"dl": on_deadlines},
-    menu=[MenuButton(menu_text, "dl", order=20, row="tasks")],
-    commands=[CommandSpec("deadlines", "Дедлайны: Д/з, лабы, контрольные", cmd_deadlines)],
+    menu=[MenuButton(menu_text, "dl", order=11, row="m1")],
+    commands=[
+        CommandSpec("tasks", "Задачи и сроки", cmd_deadlines),
+        CommandSpec("deadlines", "Дедлайны: Д/з, лабы, контрольные", cmd_deadlines, hidden=True),
+    ],
     summary=summary,
     summary_order=20,
 )

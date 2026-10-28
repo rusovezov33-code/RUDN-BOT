@@ -46,5 +46,7 @@ def test_real_registry():
         for button in feature.menu:
             REGISTRY.check_callback(button.callback)
     visible = [c.name for c in REGISTRY.visible_commands()]
-    assert visible == ["start", "today", "tomorrow", "week", "deadlines", "exams", "subjects"]
+    assert visible == ["start", "today", "tasks", "add"]
+    for name in ("tomorrow", "week", "deadlines", "exams", "subjects"):
+        assert name in REGISTRY.commands  # скрыты из меню «/», но работают
     assert "cancel" in REGISTRY.commands and "ask" not in REGISTRY.commands

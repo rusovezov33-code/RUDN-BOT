@@ -68,19 +68,16 @@ def test_open_task_counts_consistent(live):
     open_all = tasks.open_items(store.data, tasks.ALL_KINDS, si=si)
     press(live, "subs")
     badge = next(b.text for b in buttons(live.last_screen().markup) if b.callback_data == f"s:{si}")
-    assert f"📝{len(open_all)}" in badge
+    assert badge == "Химия"  # без счётчиков в списке
     press(live, f"s:{si}")
     card = live.last_screen().text
-    m = re.search(r"Открытые задания \((\d+)\)", card)
-    assert m and int(m.group(1)) == len(open_all)
-    exams = sum(1 for i in open_all if tasks.kind_of(i) == "exam")
-    assert f"экзаменов/зачётов {exams}" in card
-    shown = card.split("Открытые задания", 1)[1].count("\n• ")
+    tail = card.split("Форма: халат\n\n", 1)[1].split("\n")
     hidden = re.search(r"и ещё (\d+)", card)
+    shown = len([line for line in tail if not line.startswith("и ещё")])
     assert shown + (int(hidden.group(1)) if hidden else 0) == len(open_all)
-    assert f"📝 Задания ({len(open_all)})" in labels(live)
+    assert f"✅ Задания {len(open_all)}" in labels(live)
     press(live, f"dl:s:{si}")
-    assert live.last_screen().text.count("\n• ") == len(open_all)
+    assert live.last_screen().text.count("\n<b>") >= len(open_all)
 
 
 def test_card_says_and_more_when_hidden(live):
@@ -90,15 +87,15 @@ def test_card_says_and_more_when_hidden(live):
     total = len(tasks.open_items(store.data, tasks.ALL_KINDS, si=si))
     press(live, f"s:{si}")
     card = live.last_screen().text
-    assert f"Открытые задания ({total})" in card
-    assert f"… и ещё {total - 6} — в «📝 Задания»" in card
+    assert f"\nи ещё {total - 3}" in card
+    assert f"✅ Задания {total}" in labels(live)
 
 
 def test_global_deadlines_point_to_exams(live):
     press(live, "dl")
     shot = live.last_screen()
     n = len(tasks.upcoming_exams(store.data, tu.today()))
-    assert f"Экзамены и зачёты ({n})" in shot.text and "ex" in callbacks(shot.markup)
+    assert f"🎓 Экзамены {n}" in labels(live) and "ex|dl" in callbacks(shot.markup)
 
 
 # 3 — нули не показываем в сводках
@@ -162,7 +159,7 @@ def test_known_command_during_input_reports_cancel(live):
     run(app._command_handler(REGISTRY.commands["deadlines"][1])(FakeMessage(live, "/deadlines")))
     assert pending.get(111) is None
     shot = live.last_screen().text
-    assert shot.startswith("✖️ <i>Ввод отменён</i>") and "Дедлайны" in shot
+    assert shot.startswith("✖️ <i>Ввод отменён</i>") and "✅ <b>Задачи</b>" in shot
 
 
 def test_command_without_input_has_no_notice(live):
@@ -176,10 +173,10 @@ def test_stray_text_gets_hint(live):
     before = len(store.data["homework"])
     run(app.on_text(FakeMessage(live, "привет")))
     shot = live.last_screen().text
-    assert shot.startswith("💡") and "🎓 <b>РУДН" in shot
+    assert shot.startswith("<i>Нажми кнопку ниже.</i>") and "Понедельник, 26 октября" in shot
     assert len(store.data["homework"]) == before  # не сохранилось как д/з
     run(app.on_text(FakeMessage(live, "привет", user_id=222)))
-    assert live.last_screen().text.startswith("💡 <i>Бот управляется")
+    assert live.last_screen().text.startswith("<i>Нажми кнопку ниже.</i>")
 
 
 # 7 — короткие названия и обрезка по словам

@@ -4,7 +4,7 @@ from __future__ import annotations
 from html import escape
 
 from rudn import tuis
-from rudn.core import config, tasks, timeutil as tu
+from rudn.core import config, dresscode, tasks, timeutil as tu
 from rudn.core.registry import CommandSpec, Feature, MenuButton
 from rudn.core.storage import common_urls
 from rudn.core.ui import Ctx, b, chunk, is_url, maybe, nav, row_of, short, url_btn
@@ -40,6 +40,14 @@ def file_count(subject: dict) -> int:
     return sum(len(section.get("files") or []) for section in subject.get("sections") or [])
 
 
+def short_person(name: str) -> str:
+    """«Провоторова Елена Аркадьевна» → «Провоторова Е. А.»; иное — как есть."""
+    parts = name.split()
+    if len(parts) == 3 and all(p[:1].isupper() and p.isalpha() for p in parts):
+        return f"{parts[0]} {parts[1][0]}. {parts[2][0]}."
+    return name
+
+
 def section_label(title: str) -> str:
     return short(str(title or "Раздел").split(" — ")[0], 28)
 
@@ -48,40 +56,31 @@ def common_link_row() -> list:
     return [url_btn(f"🔗 {link['title']}", link["url"]) for link in config.subjects().common_links if is_url(link.get("url"))]
 
 
-CARD_TASKS = 6
+CARD_TASKS = 3
 
 
 def open_task_lines(open_tasks: list[dict], today) -> list[str]:
-    """Блок «Открытые задания» карточки: число = все строки, которые есть в «📝 Задания»;
-    видно, сколько из них экзамены/зачёты и сколько не поместилось."""
-    exams = sum(1 for item in open_tasks if tasks.kind_of(item) == "exam")
-    split = f" — дедлайнов {len(open_tasks) - exams}, экзаменов/зачётов {exams}" if exams and exams < len(open_tasks) else ""
-    lines = [f"📝 <b>Открытые задания ({len(open_tasks)}){split}:</b>"]
+    """Ближайшие задания карточки: «срок  текст» без значков, остальное — «и ещё N» (в «✅ Задания»)."""
+    lines = []
     for item in open_tasks[:CARD_TASKS]:
-        body = (tasks.titled_text(item) if tasks.kind_of(item) == "exam" else str(item.get("text") or "")) or "—"
-        lines.append(f"• {escape(tasks.due_text(item, today))} · {tasks.kind_icon(item)} {escape(short(body, 110))}")
+        body = (tasks.titled_text(item) if tasks.kind_of(item) == "exam" else tasks.plain_text(item)) or "—"
+        lines.append(f"{escape(tasks.due_text(item, today))}  {escape(short(body, 40))}")
     if len(open_tasks) > CARD_TASKS:
-        lines.append(f"… и ещё {len(open_tasks) - CARD_TASKS} — в «📝 Задания»")
+        lines.append(f"и ещё {len(open_tasks) - CARD_TASKS}")
     return lines
 
 
 async def screen_subjects(ctx: Ctx) -> None:
     data = ctx.data
     subjects = data.get("subjects") or []
-    buttons = []
-    for index, subject in enumerate(subjects):
-        badges = ""
-        files = file_count(subject)
-        if files:
-            badges += f" 📄{files}"
-        open_tasks = len(tasks.open_items(data, tasks.ALL_KINDS, si=index))
-        if open_tasks:
-            badges += f" 📝{open_tasks}"
-        buttons.append(b(short(tu.short_name(subject.get("name") or "Без названия"), 24) + badges, f"s:{index}"))
+    buttons = [
+        b(short(tu.short_name(subject.get("name") or "Без названия"), 20), f"s:{index}")
+        for index, subject in enumerate(subjects)
+    ]
     rows = chunk(buttons, 2)
-    rows.append(common_link_row())
-    rows.append(nav())
-    text = "📚 <b>Предметы</b>\n📄 — файлы, 📝 — открытые задания (вместе с экзаменами/зачётами)" if subjects else "📚 <b>Предметы</b>\n\nПока ничего нет."
+    rows.append(row_of(maybe("📊 Все баллы", "sc|subs"), *common_link_row()))
+    rows.append([b("⬅ Назад", "home")])
+    text = "📚 <b>Предметы</b>" if subjects else "📚 <b>Предметы</b>\n\nПока ничего нет."
     await ctx.show(text, rows)
 
 
@@ -94,20 +93,18 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
         return
     today = tu.today()
     name = subject.get("name") or "Без названия"
-    lines = [f"📘 <b>{escape(name)}</b>"]
+    lines = [f"<b>{escape(name)}</b>"]
     teacher = subject.get("teacher") if subject.get("teacher") not in (None, "", "Не указано") else tuis.teacher_for(name)
     if teacher:
-        lines.append(f"👤 {escape(str(teacher))}")
+        lines.append(escape(str(teacher)))
     if subject.get("contacts") and subject["contacts"] != "Не указано":
-        lines.append(f"✉️ {escape(str(subject['contacts']))}")
+        lines.append(escape(str(subject["contacts"])))
     if subject.get("description"):
         lines.append(escape(str(subject["description"])))
-    slots = tu.slots_for_subject(name)
-    if slots:
-        lines.append("")
-        for code, lesson in slots:
-            place = f" · {escape(lesson.place)}" if lesson.place else ""
-            lines.append(f"🗓 {code} {escape(lesson.time)}{place} · {tu.WEEK_NOTE[lesson.weeks]}")
+    form = dresscode.form_line(name)
+    if form:
+        lines.append(form)
+    # аудитории и время пар — по кнопке «📅 Пара …» (экран дня), не на карточке
     found = tuis.courses_for(name)
     open_tasks = sorted(tasks.open_items(data, tasks.ALL_KINDS, si=si), key=tasks.sort_key)
     if open_tasks:
@@ -115,15 +112,12 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
         lines += open_task_lines(open_tasks, today)
     rows: list[list] = []
     upcoming = tu.upcoming_lesson_dates(name, today, 45, moment=tu.now())
-    first_row = []
+    first_row = [maybe(f"✅ Задания {len(open_tasks)}", f"dl:s:{si}") if open_tasks else None]
     if upcoming:
-        first_row.append(maybe(f"📅 Ближайшая · {tu.fmt_dm(upcoming[0])}", f"d:{upcoming[0].isoformat()}|s:{si}"))
-    first_row.append(maybe(f"📝 Задания ({len(open_tasks)})" if open_tasks else "📝 Задания", f"dl:s:{si}"))
+        first_row.append(maybe(f"📅 Пара {tu.fmt_dm(upcoming[0])}", f"d:{upcoming[0].isoformat()}|s:{si}"))
     rows.append(row_of(*first_row))
-    if ctx.is_owner:
-        rows.append(row_of(maybe("➕ Добавить: Д/з · контрольная · экзамен", f"add:s:{si}")))
     score_btns = [
-        maybe(f"📊 Баллы{' · ' + short(tu.short_name(c['name']), 22) if len(found) > 1 else ''}", f"sc:c:{c['key']}|s:{si}")
+        maybe(f"📊 Баллы{' · ' + short(tu.short_name(c['name']), 10) if len(found) > 1 else ''}", f"sc:c:{c['key']}|s:{si}")
         for c in found
     ]
     tuis_btn = maybe("🎓 ТУИС", f"s:{si}:t") if has_tuis(name) else None
@@ -132,19 +126,16 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
     else:
         rows.append(row_of(tuis_btn))
         if score_btns:
-            rows.append(row_of(*score_btns))
+            rows += chunk(score_btns, 2)
     filled = [
-        b(f"{section_label(section.get('title'))} ({section_size(section)})", f"s:{si}:{index}")
+        b(short(section_label(section.get("title")), 20), f"s:{si}:{index}")
         for index, section in enumerate(subject.get("sections") or [])
         if isinstance(section, dict) and section_size(section)
     ]
-    if filled:
-        rows += chunk(filled, 2)
-    else:
-        lines.append("")
-        lines.append("📂 Материалы пока не добавлены.")
-        if ctx.is_owner:
-            lines.append("Чтобы добавить файл — просто пришли его боту документом.")
+    rows += chunk(filled, 2)  # пустые разделы не показываем
+    if ctx.is_owner:
+        rows.append(row_of(maybe("➕ Добавить", f"add:s:{si}")))
+    rows = [row for row in rows if row]
     rows.append(nav("subs"))
     await ctx.show("\n".join(lines), rows)
 
@@ -165,10 +156,6 @@ async def screen_section(ctx: Ctx, si: int, j: int) -> None:
         lines += ["", body]
     elif not (links or files):
         lines += ["", "Пока ничего нет."]
-    if files and config.public_base():
-        lines.append("\nНажми на файл — телефон предложит приложение.")
-    elif files:
-        lines.append("\nНажми на файл — бот пришлёт его сообщением.")
     rows = [[url_btn(f"🔗 {short(link.get('title') or link['url'], 40)}", link["url"])] for link in links]
     for index, meta in enumerate(files):
         _, file_name = file_meta(meta)
@@ -193,7 +180,7 @@ async def screen_tuis(ctx: Ctx, si: int) -> None:
         parts = tuis.parts_for(name)
     except Exception:
         summary, parts = [], []
-    lines = [f"🎓 <b>ТУИС · {escape(name)}</b>", "<i>Из документов курса в ТУИС.</i>", ""]
+    lines = [f"🎓 <b>ТУИС · {escape(name)}</b>", ""]
     lines += summary or ["Документов ТУИС по предмету нет."]
     rows = chunk([b(tuis.PARTS[key][0], f"s:{si}:t:{key}") for key in parts], 2)
     found = tuis.courses_for(name)
@@ -288,6 +275,6 @@ async def cmd_subjects(ctx: Ctx) -> None:
 feature = Feature(
     name="subjects",
     callbacks={"subs": on_subjects, "s": on_subject, "file": on_file},
-    menu=[MenuButton("📚 Предметы", "subs", order=30, row="subjects")],
-    commands=[CommandSpec("subjects", "Предметы и материалы", cmd_subjects)],
+    menu=[MenuButton("📚 Предметы", "subs", order=20, row="m2")],
+    commands=[CommandSpec("subjects", "Предметы и материалы", cmd_subjects, hidden=True)],
 )

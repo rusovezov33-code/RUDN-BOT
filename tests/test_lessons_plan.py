@@ -318,7 +318,7 @@ def test_today_screen_evening_27(use_data):
     assert "Сегодня уже вечер" in shot.text and "Завтра (СР 28.10, ≈15 мин): Латынь 1" in shot.text
     labels = [x.text for x in buttons(shot.markup)]
     assert "➕ Взять следующий урок: Латынь 1" in labels
-    assert {"🗓 План по дням", "📚 Все уроки", "🏠 Меню"} <= set(labels)
+    assert {"🗓 План по дням", "📚 Все уроки", "⬅ Назад"} <= set(labels)
     all_ok(shot.markup)
     assert "📚 Завтра: Латынь — урок 1 (≈15 мин)" in summary_text(feat)
 

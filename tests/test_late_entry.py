@@ -80,7 +80,7 @@ def test_reseed_updates_old_items_without_touching_user_changes(use_data):
     assert not any(i.get("tuis_key") == "minf-kr4" for i in data["homework"])
     # повторный запуск ничего не меняет
     assert tuis.update_seeded(data) == []
-    assert tasks.due_text(items["chem-final"], date(2026, 10, 27)).endswith("⚠️")
+    assert tasks.due_text(items["chem-final"], date(2026, 10, 27)).endswith(" ?")
     assert tasks.due_text(items["lat-kr2"], date(2026, 10, 27)).endswith("≈")
 
 

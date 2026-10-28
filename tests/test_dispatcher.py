@@ -73,7 +73,7 @@ def test_dispatcher_feed_update(use_data):
     names = [type(m).__name__ for m in session.requests]
     assert "SetMyCommands" in names
     cmds = next(m for m in session.requests if type(m).__name__ == "SetMyCommands").commands
-    assert [c.command for c in cmds] == ["start", "today", "tomorrow", "week", "deadlines", "exams", "subjects"]
+    assert [c.command for c in cmds] == ["start", "today", "tasks", "add"]
     assert "DeleteMessage" in names and "SendMessage" in names
     assert "AnswerCallbackQuery" in names and "EditMessageText" in names
     assert names.index("AnswerCallbackQuery") < names.index("EditMessageText")

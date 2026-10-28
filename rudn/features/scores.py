@@ -6,8 +6,8 @@ from html import escape
 
 from rudn import tuis
 from rudn.core import timeutil as tu
-from rudn.core.registry import Feature, MenuButton
-from rudn.core.ui import Ctx, b, maybe, nav, row_of, short
+from rudn.core.registry import Feature
+from rudn.core.ui import Ctx, b, chunk, maybe, nav, row_of, short
 
 STATE = "sc_input"
 
@@ -21,17 +21,18 @@ def subject_index(data: dict, name: str) -> int | None:
 
 async def screen_list(ctx: Ctx) -> None:
     data = ctx.data
-    lines = ["📊 <b>Баллы по БРС</b>", "Максимум и правила — из документов ТУИС; свои баллы вносишь сам.", ""]
+    lines = ["📊 <b>Баллы по БРС</b>", ""]
     rows = []
     for c in tuis.courses():
         got, done_max = tuis.total(data, c)
         mark = f"{tuis.fmt_num(got)}/{tuis.fmt_num(c.get('total_max'))}" if done_max else "—"
-        lines.append(f"• <b>{escape(c['name'])}</b>: {mark} · {tuis.brs_short(c)}")
-        rows.append([b(f"{short(tu.short_name(c['name']), 34)} · {mark}", f"sc:c:{c['key']}")])
+        lines.append(f"{escape(tu.short_name(c['name']))}  {mark}")
+        rows.append(b(f"{short(tu.short_name(c['name']), 20)}", f"sc:c:{c['key']}"))
     missing = sorted((tuis.load().get("no_data") or {}).keys())
     if missing:
         lines += ["", "Нет БРС в документах: " + escape(", ".join(missing))]
-    rows.append(nav())
+    rows = chunk(rows, 2)
+    rows.append(nav(ctx.back))
     await ctx.show("\n".join(lines), rows)
 
 
@@ -188,7 +189,6 @@ def startup(target) -> None:
 feature = Feature(
     name="scores",
     callbacks={"sc": on_scores},
-    menu=[MenuButton("📊 Баллы", "sc", order=31, row="subjects")],
     summary=summary,
     summary_order=40,
     text_states={STATE: on_score_text},

@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timedelta
 from typing import Any, Iterable
 
@@ -214,6 +215,14 @@ def mark_done(item: dict, done: bool = True) -> None:
 _LABEL_SEPARATORS = (" — ", " – ", " - ", ": ", ", ")
 
 
+_WARN_NOTE = re.compile(r"\s*\(⚠️[^)]*\)")
+
+
+def plain_text(item: dict) -> str:
+    """Текст пункта для списков: без «(⚠️ дата основного потока…)» — это уже значок « ?» у даты."""
+    return _WARN_NOTE.sub("", str(item.get("text") or "")).replace("⚠️", "").strip()
+
+
 def body_text(item: dict) -> str:
     """Текст пункта без повторения типа в начале: при подписи «Зачёт» текст
     «Зачёт — письменная работа» показывается как «письменная работа» (без «Зачёт — Зачёт»)."""
@@ -254,11 +263,11 @@ def delete_item(data: dict, item: dict) -> None:
             deleted.append(key)
 
 
-DATE_HINTS = {"regular": " ⚠️", "week": " ≈"}
+DATE_HINTS = {"regular": " ?", "week": " ≈"}
 
 
 def date_mark(item: dict) -> str:
-    """« ⚠️» — дата основного потока (уточнить), « ≈» — вычислена по номеру недели."""
+    """« ?» — дата основного потока (уточнить), « ≈» — вычислена по номеру недели."""
     return DATE_HINTS.get(str(item.get("date_hint") or ""), "") if item_date(item) else ""
 
 

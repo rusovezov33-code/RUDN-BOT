@@ -36,21 +36,19 @@ def summary(ctx: Ctx) -> list[str]:
     """Главный экран: напоминания на сегодня (добавлены через ➕ → 🔔) и заметки. Пусто — ничего."""
     data = ctx.data
     lines: list[str] = []
-    events = tasks.events_on(data, tu.today())
-    if events:
-        lines.append("🔔 <b>Напоминания на сегодня:</b>")
-        for item in events:
-            lines += _note_lines(item.get("text") or "", 200)
+    # Простым текстом, без заголовков и маркеров: сначала напоминания на сегодня, потом заметки.
+    for item in tasks.events_on(data, tu.today()):
+        lines += _plain_lines(item.get("text") or "", 200)
     notes = notes_of(data)
-    if notes:
-        if lines:
-            lines.append("")
-        lines.append("📌 <b>Заметки:</b>")
-        for note in notes[:HOME_LIMIT]:
-            lines += _note_lines(note["text"], 200)
-        if len(notes) > HOME_LIMIT:
-            lines.append(f"… ещё {len(notes) - HOME_LIMIT} — в «📌 Заметки»")
+    for note in notes[:HOME_LIMIT]:
+        lines += _plain_lines(note["text"], 200)
+    if len(notes) > HOME_LIMIT:
+        lines.append(f"и ещё {len(notes) - HOME_LIMIT}")
     return lines
+
+
+def _plain_lines(text: str, limit: int) -> list[str]:
+    return [escape(short(part, limit)) for part in str(text).split("\n") if part.strip()]
 
 
 async def screen_notes(ctx: Ctx, notice: str | None = None) -> None:
@@ -66,14 +64,12 @@ async def screen_notes(ctx: Ctx, notice: str | None = None) -> None:
             lines += body
     else:
         lines.append("Пока пусто.")
-        if ctx.is_owner:
-            lines.append("<i>Заметки показываются на главном экране под расписанием.</i>")
     rows: list[list] = []
     if ctx.is_owner:
-        rows.append([b("➕ Добавить заметку", f"{PREFIX}:a")])
+        rows.append([b("➕ Добавить", f"{PREFIX}:a")])
         for index, note in enumerate(notes):
             first = str(note["text"]).split("\n")[0]
-            rows.append([b(f"🗑 {index + 1}. {short(first, 30)}", f"{PREFIX}:d:{index}")])
+            rows.append([b(f"🗑 {index + 1}. {short(first, 14)}", f"{PREFIX}:d:{index}")])
     rows.append(nav())
     await ctx.show("\n".join(lines), rows)
 
@@ -134,7 +130,7 @@ feature = Feature(
     name="notes",
     callbacks={PREFIX: on_notes},
     text_states={STATE: on_note_text},
-    menu=[MenuButton("📌 Заметки", PREFIX, order=13, row="sched")],
+    menu=[MenuButton("📌 Заметки", PREFIX, order=30, row="m3")],
     summary=summary,
     summary_order=20,
 )

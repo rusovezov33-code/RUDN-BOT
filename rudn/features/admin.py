@@ -12,7 +12,7 @@ from aiogram import F, Router
 from aiogram.types import BufferedInputFile, Message
 
 from rudn.core import config, tasks, timeutil as tu
-from rudn.core.registry import CommandSpec, Feature, MenuButton
+from rudn.core.registry import CommandSpec, Feature
 from rudn.core.storage import encode
 from rudn.core.ui import Ctx, b, cancel_row, chunk, maybe, nav, row_of, short
 
@@ -195,7 +195,7 @@ def save_item(ctx: Ctx, info: dict, text: str) -> tuple[str, list[list]]:
     if tasks.body_text(item):
         lines.append(escape(tasks.body_text(item)))
     more = f"add:s:{si}" if isinstance(si, int) else "add"
-    target = maybe("🎓 Экзамены", "ex") if kind == "exam" else maybe("🔥 Дедлайны", "dl")
+    target = maybe("🎓 Экзамены", "ex|dl") if kind == "exam" else maybe("✅ Задачи", "dl")
     return "\n".join(lines), [row_of(b("➕ Ещё", more), target), nav(f"s:{si}" if isinstance(si, int) else None)]
 
 
@@ -343,6 +343,10 @@ async def on_admin(ctx: Ctx, args: list[str]) -> None:
     await screen_service(ctx)
 
 
+async def cmd_add(ctx: Ctx) -> None:
+    await on_add(ctx, [])
+
+
 async def cmd_status(ctx: Ctx) -> None:
     if await ctx.require_owner():
         await screen_service(ctx)
@@ -473,11 +477,8 @@ async def on_restore(ctx: Ctx, args: list[str]) -> None:
 feature = Feature(
     name="admin",
     callbacks={"add": on_add, "adm": on_admin, "up": on_upload, "rs": on_restore},
-    menu=[
-        MenuButton("➕ Добавить", "add", order=90, row="admin", owner_only=True),
-        MenuButton("⚙️ Сервис", "adm", order=91, row="admin", owner_only=True),
-    ],
     commands=[
+        CommandSpec("add", "Добавить задание", cmd_add),
         CommandSpec("status", "Статус бота", cmd_status, hidden=True),
         CommandSpec("backup", "Бэкап data.json", cmd_backup, hidden=True),
     ],

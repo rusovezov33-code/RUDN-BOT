@@ -58,6 +58,7 @@ TESTER_READ: dict[str, Callable[[list[str]], bool]] = {
     "nt": _only(""),  # заметки: только список
     "p": _ANY,  # страницы (МФЦ и т.п.)
     "ls": _ANY,  # уроки — у тестера свой прогресс
+    "mo": _ANY,  # «⋯ Ещё» — хаб (кнопки владельца тестеру не показываются)
     # запрещено целиком: it (правка задания), add, adm, up, rs, evd, acc
     "it": lambda args: False,
     "add": lambda args: False,
@@ -67,7 +68,7 @@ TESTER_READ: dict[str, Callable[[list[str]], bool]] = {
     "evd": lambda args: False,
     "acc": lambda args: False,
 }
-TESTER_COMMANDS = {"start", "menu", "cancel", "today", "tomorrow", "week", "deadlines", "exams", "subjects"}
+TESTER_COMMANDS = {"start", "menu", "cancel", "today", "tomorrow", "week", "deadlines", "tasks", "exams", "subjects"}
 TESTER_TEXT_STATES = {"ls_answer"}  # ответы в уроке — в свой прогресс
 
 

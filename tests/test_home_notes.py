@@ -38,17 +38,14 @@ def test_home_is_schedule_and_own_notes_only(use_data):
     press(bot, "home")
     shot = bot.last_screen()
     text = shot.text
-    assert text.startswith("🎓 <b>РУДН</b> · Понедельник, 26 октября\nВерхняя неделя\n\n📅 <b>Расписание на сегодня:</b>")
-    assert "▶️ <b>12:00–13:20 Русский язык для иностранцев</b>" in text and "← сейчас" in text
-    assert "• 13:30–14:50 Русский язык для иностранцев" in text
-    # своё напоминание на сегодня (➕ → 🔔) — видно
-    assert "🔔 <b>Напоминания на сегодня:</b>\n• Поработать над ИИ." in text
-    for noise in ["Скоро", "Дедлайн", "срочных", "Ближайший", "📚", "Сейчас:", "Далее", "Баллы", "ТУИС"]:
+    assert text.startswith("<b>Понедельник, 26 октября</b> · верхняя неделя\n\n<b>12:00  Русский язык для иностранцев</b>\n")
+    assert "\n13:30  Русский язык для иностранцев" in text
+    # своё напоминание на сегодня (➕ → 🔔) — видно, без заголовков
+    assert "\nПоработать над ИИ." in text
+    for noise in ["Скоро", "Дедлайн", "срочных", "Ближайший", "📚", "Сейчас:", "Далее", "Баллы", "ТУИС", "Заметки", "•", "📍"]:
         assert noise not in text, noise
-    assert "📌 <b>Заметки" not in text  # заметок нет — блока нет
     cbs = callbacks(shot.markup)
-    assert "d:t" not in cbs and "📅 Сегодня" not in [x.text for x in buttons(shot.markup)]
-    assert {"d:tm", "w:now", "nt"} <= set(cbs)
+    assert cbs == ["d:t", "dl", "subs", "ls", "nt", "mo"]
     # d:t по-прежнему работает (команда /today, старые кнопки)
     press(bot, "d:t")
     assert "26.10" in bot.last_screen().text or "26 октября" in bot.last_screen().text
@@ -60,7 +57,7 @@ def test_home_without_classes_one_line(use_data):
     bot = FakeBot()
     press(bot, "home")
     body = bot.last_screen().text.split("\n\n", 1)[1]
-    assert body.split("\n")[0] == "😌 Сегодня пар нет"
+    assert body.split("\n")[0] == "Пар нет"
     assert "Расписание на сегодня" not in body
 
 
@@ -80,8 +77,8 @@ def test_notes_add_list_delete(use_data):
     say(bot, "Купить <халат>")
     press(bot, "home")
     text = bot.last_screen().text
-    assert "📌 <b>Заметки:</b>\n• Сдать справку в деканат\n  до пятницы\n• Купить &lt;халат&gt;" in text
-    assert text.index("Расписание на сегодня") < text.index("📌 <b>Заметки:</b>")
+    assert "Сдать справку в деканат" in text and "Купить &lt;халат&gt;" in text
+    assert text.index("Русский язык") < text.index("Сдать справку") < text.index("Купить")
     press(bot, "nt")
     assert "nt:d:0" in callbacks(bot.last_screen().markup)
     press(bot, "nt:d:0")
@@ -93,7 +90,7 @@ def test_notes_add_list_delete(use_data):
     press(bot, "nt:d:0:y")
     assert store.data["notes"] == []
     press(bot, "home")
-    assert "Заметки:" not in bot.last_screen().text
+    assert "Купить" not in bot.last_screen().text
 
 
 def test_notes_tester_read_only(use_data):
@@ -123,7 +120,7 @@ def test_tuis_summary_back_returns_to_subject_card(use_data):
         back = next(x for x in buttons(shot.markup) if x.text == "⬅ Назад")
         assert back.callback_data == f"s:{si}"
         press(bot, back.callback_data, user_id=user)
-        assert bot.last_screen().text.startswith("📘 <b>Химия</b>"), user
+        assert bot.last_screen().text.startswith("<b>Химия</b>"), user
         # через «📊 Мои баллы» и обратно: ТУИС → карточка
         press(bot, f"s:{si}:t", user_id=user)
         scores = next(x.callback_data for x in buttons(bot.last_screen().markup) if x.text == "📊 Мои баллы")
@@ -132,7 +129,7 @@ def test_tuis_summary_back_returns_to_subject_card(use_data):
         press(bot, back, user_id=user)
         assert bot.last_screen().text.startswith("🎓 <b>ТУИС · Химия</b>")
         press(bot, f"s:{si}", user_id=user)
-        assert bot.last_screen().text.startswith("📘 <b>Химия</b>")
+        assert bot.last_screen().text.startswith("<b>Химия</b>")
         # из раздела ТУИС: Назад → сводка ТУИС
         press(bot, f"s:{si}:t:brs", user_id=user)
         back = next(x.callback_data for x in buttons(bot.last_screen().markup) if x.text == "⬅ Назад")

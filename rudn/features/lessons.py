@@ -817,7 +817,7 @@ def startup(target: Any) -> None:
 feature = Feature(
     name="lessons",
     callbacks={PREFIX: on_lessons},
-    menu=[MenuButton("📚 Уроки", PREFIX, order=32, row="subjects")],
+    menu=[MenuButton("🧠 Учить", PREFIX, order=21, row="m2")],
     summary=summary,
     summary_order=45,
     text_states={STATE: on_answer_text},

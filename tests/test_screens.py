@@ -58,7 +58,7 @@ async def crawl(bot, user_id, limit=500):
         for cb in cbs:
             REGISTRY.check_callback(cb)
         if cbs:
-            assert "home" in cbs or any(c.startswith(("x", "add:")) for c in cbs) or shot.text.startswith("🎓 <b>РУДН"), (
+            assert "home" in cbs or any(c.startswith(("x", "add:")) for c in cbs) or "mo" in cbs, (
                 f"экран {data!r} без выхода в меню"
             )
         for cb in cbs:
@@ -96,10 +96,11 @@ def test_home_text_live(use_data):
     screen = bot.last_screen()
     assert "Поработать над ИИ." in screen.text
     texts = [btn.text for btn in buttons(screen.markup)]
-    assert any("МФЦ" in t for t in texts)
-    assert not any("Расписание" in t and "📅" in t and t != "📅 Сегодня" for t in texts if "Дедлайны и экзамены" in t)
-    assert not any("Дедлайны и экзамены" in t for t in texts)
-    assert any(t.startswith("🔥 Дедлайны") for t in texts) and any(t.startswith("🎓 Экзамены") for t in texts)
+    assert texts[0] == "🗓 Расписание" and texts[1].startswith("✅ Задачи") and texts[-1] == "⋯ Ещё"
+    run(app.on_callback(FakeCallback(bot, "mo")))
+    more = [btn.text for btn in buttons(bot.last_screen().markup)]
+    assert any("МФЦ" in t for t in more)  # страницы — в «⋯ Ещё»
+    assert not any("Дедлайны и экзамены" in t or t.endswith("Расписание") for t in more)
 
 
 def test_live_event_on_day_screen(use_data):
@@ -124,7 +125,7 @@ def test_mfc_page_content_unchanged(use_data):
     assert escape(page["text"]) in screen.text
     urls = [btn.url for btn in buttons(screen.markup) if btn.url]
     assert urls == [l["url"] for l in page.get("links") or [] if l.get("url")]
-    assert callbacks(screen.markup) == ["home", "home"]
+    assert callbacks(screen.markup) == ["home"]  # «Назад» = меню — без дубля
 
 
 def test_one_tap_done_and_undo(use_data):

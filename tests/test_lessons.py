@@ -173,7 +173,7 @@ def test_menu_button_owner_only(use_data):
     bot = FakeBot()
     press(bot, "home")
     assert "ls" in callbacks(screen(bot).markup)
-    assert "📚 Уроки" in [b.text for b in buttons(screen(bot).markup)]
+    assert "🧠 Учить" in [b.text for b in buttons(screen(bot).markup)]
     press(bot, "home", user_id=222)  # тестер: уроки есть (свой прогресс)
     assert "ls" in callbacks(screen(bot).markup)
     calls = len(bot.calls)

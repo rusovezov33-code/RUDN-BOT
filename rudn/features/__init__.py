@@ -17,4 +17,5 @@ FEATURES: list[str] = [
     "pages",
     "lessons",  # до admin: её router ловит стикеры/фото во время урока раньше admin
     "admin",
+    "more",  # «⋯ Ещё» — последним: ссылается на pages/scores/admin
 ]

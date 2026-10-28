@@ -45,4 +45,4 @@ async def on_page(ctx: Ctx, args: list[str]) -> None:
     await ctx.show(text, rows)
 
 
-feature = Feature(name="pages", callbacks={"p": on_page}, menu_dynamic=dynamic_menu)
+feature = Feature(name="pages", callbacks={"p": on_page})  # кнопки страниц — в «⋯ Ещё»

@@ -105,9 +105,9 @@ def test_soon_compact_summary_and_full_in_deadlines(use_data):
     assert not any("Скоро" in btn.text for btn in buttons(home.markup))  # без новой кнопки меню
     run(app.on_callback(FakeCallback(bot, "dl")))
     dl = bot.last_screen().text
-    assert dl.index("⏰ <b>Скоро</b>") < dl.index("<b>📆 На неделе</b>")
-    assert "📚 перевод словосочетаний с русского и с латинского" in dl
-    assert "Д/з 6" in dl.split("<b>📆")[0]  # полный список, без «ещё N»
+    assert "⏰ <b>Скоро</b>" not in dl  # без дублирующего блока: только группы по срокам
+    assert "Латинский язык: КР" in dl  # полный текст — на экране пункта (✏️)
+    assert "Д/з 6" in dl and "ещё" not in dl  # полный список, без «ещё N»
 
 
 def test_no_new_menu_button():
@@ -122,7 +122,7 @@ def test_latin_card_teacher_note_and_textbook(use_data):
     bot = FakeBot()
     run(app.on_callback(FakeCallback(bot, f"s:{latin(data)}")))
     card = bot.last_screen().text
-    assert "👤 Провоторова Елена Аркадьевна" in card
+    assert "\nПровоторова Елена Аркадьевна" in card and "👤" not in card
     # заметки из ТУИС/чата — в разделе «🎓 ТУИС», не в карточке
     assert "учить слова" not in card
     run(app.on_callback(FakeCallback(bot, f"s:{latin(data)}:t")))

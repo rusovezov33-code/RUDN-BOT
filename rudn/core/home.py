@@ -48,12 +48,8 @@ def menu_buttons(ctx: Ctx) -> list[list]:
 
 def home_text(ctx: Ctx) -> str:
     today = timeutil.today()
-    lines = [
-        f"🎓 <b>РУДН</b> · {escape(timeutil.fmt_day(today))}",
-        f"{timeutil.week_label(timeutil.week_type(today)).capitalize()} неделя",
-    ]
-    if ctx.is_tester:
-        lines.append("👀 <i>Режим тестера: только просмотр</i>")
+    # Только дата и неделя, пары на сегодня, свои заметки. Без значков и подсказок.
+    lines = [f"<b>{escape(timeutil.fmt_day(today))}</b> · {timeutil.week_label(timeutil.week_type(today))} неделя"]
     features = sorted(
         (f for f in REGISTRY.features if f.summary and f.name in HOME_SUMMARIES), key=lambda f: f.summary_order
     )
@@ -73,12 +69,7 @@ CANCELLED = "✖️ <i>Ввод отменён</i>"
 
 
 def stray_hint(ctx: Ctx) -> str:
-    if ctx.is_owner:
-        return (
-            "💡 <i>Сейчас бот не ждёт текста. Пользуйся кнопками: «➕ Добавить» — задание, "
-            "«📊 Баллы» → ✏️ — ввести баллы.</i>"
-        )
-    return "💡 <i>Бот управляется кнопками меню ниже.</i>"
+    return "<i>Нажми кнопку ниже.</i>"
 
 
 async def screen_home(ctx: Ctx, args: list[str] | None = None, notice: str | None = None) -> None:

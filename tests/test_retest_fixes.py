@@ -133,7 +133,7 @@ def test_chem_undated_tests_say_bez_sroka(use_data):
     text = bot.last_screen().text
     assert "Без даты" in text
     line = next(l for l in text.split("\n") if "Углеводороды" in l)
-    assert line.startswith("• <b>без срока</b>") and "⚠️" not in line and "≈" not in line
+    assert line.startswith("<b>без срока</b>") and "⚠️" not in line and "≈" not in line
 
 
 def test_item_screen_edit_and_delete_with_confirm(use_data):
@@ -142,7 +142,7 @@ def test_item_screen_edit_and_delete_with_confirm(use_data):
     bot = FakeBot()
     run(app.on_callback(FakeCallback(bot, "dl")))
     shot = bot.last_screen()
-    assert "✏️ — открыть" in shot.text
+    assert "✏️ — открыть" not in shot.text  # без подсказок
     opens = [c for c in callbacks(shot.markup) if c.startswith("it:o:")]
     oks = [c for c in callbacks(shot.markup) if c.startswith("dl:ok:")]
     assert opens and len(opens) == len(oks)  # одна строка: ✅ + ✏️
@@ -166,7 +166,7 @@ def test_item_screen_edit_and_delete_with_confirm(use_data):
     cb = FakeCallback(bot, f"it:X:{item_id}:a")
     run(app.on_callback(cb))
     assert tasks.find(data, item_id) is None and cb.answers == [("🗑 Удалено", False)]
-    assert bot.last_screen().text.startswith("🔥 <b>Дедлайны")
+    assert bot.last_screen().text.startswith("✅ <b>Задачи")
     saved = json.loads(store.path.read_text("utf-8"))
     assert all(i.get("id") != item_id for i in saved["homework"])
 

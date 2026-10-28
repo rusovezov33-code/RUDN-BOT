@@ -5,7 +5,7 @@ from datetime import date
 from html import escape
 
 from rudn.core import tasks, timeutil as tu
-from rudn.core.registry import CommandSpec, Feature, MenuButton
+from rudn.core.registry import CommandSpec, Feature
 from rudn.core.ui import Ctx, b, nav, short
 
 
@@ -26,48 +26,39 @@ def exam_lines(item: dict, data: dict, today: date) -> list[str]:
     due = tasks.item_date(item)
     subject = tasks.subject_name(item, data) or "—"
     when = (tu.fmt_dm(due) if due else "—") + tasks.date_mark(item)
-    lines = [f"• <b>{when}</b> · {countdown(due, today)} — {escape(tasks.kind_label(item))} · <b>{escape(subject)}</b>"]
-    details = ", ".join(escape(str(item[key])) for key in ("time", "place") if item.get(key))
-    if details:
-        lines.append(f"   🕘 {details}")
-    body = tasks.body_text(item)
-    if body:
-        lines.append(f"   {escape(body)}")
-    return lines
+    # «дата · через N дней  Зачёт: Предмет»; время, место и описание — на экране пункта (✏️)
+    body = " ".join(tasks.body_text(item).split())
+    what = f" — {escape(short(body, 50))}" if body else ""
+    return [f"<b>{when}</b> · {countdown(due, today)}  {escape(tasks.kind_label(item))}: {escape(tu.short_name(subject))}{what}"]
 
 
 async def render(ctx: Ctx, past: bool = False, undo: dict | None = None) -> None:
     data = ctx.data
     today = tu.today()
     items = tasks.past_exams(data, today) if past else tasks.upcoming_exams(data, today)
-    title = "🎓 <b>Прошедшие / сданные</b>" if past else "🎓 <b>Экзамены и зачёты</b>"
+    title = "🎓 <b>Прошедшие</b>" if past else "🎓 <b>Экзамены и зачёты</b>"
     lines = [title, ""]
     rows: list[list] = []
     if undo is not None and ctx.is_owner:
         label = f"{tu.short_name(tasks.subject_name(undo, data))} {tu.fmt_short(tasks.item_date(undo)) if tasks.item_date(undo) else ''}"
-        rows.append([b(f"↩ Вернуть: {short(label, 30)}", f"ex:un:{undo['id']}:u")])
+        rows.append([b(f"↩ {short(label, 18)}", f"ex:un:{undo['id']}:u")])
     if not items:
-        lines.append("Пока пусто." if past else "Ближайших экзаменов и зачётов нет.")
-        if not past and ctx.is_owner:
-            lines.append("Добавь кнопкой «➕ Экзамен» или «➕ Зачёт» ниже.")
+        lines.append("Пока пусто." if past else "Ближайших нет.")
     for item in items[:30]:
         lines.extend(exam_lines(item, data, today))
         if ctx.is_owner:
             label = f"{tu.short_name(tasks.subject_name(item, data))} {tu.fmt_short(tasks.item_date(item)) if tasks.item_date(item) else ''}"
             if past:
-                rows.append([b(f"↩ {short(label, 24)}", f"ex:un:{item['id']}"), b("🗑 Удалить", f"ex:rm:{item['id']}")])
+                rows.append([b(f"↩ {short(label, 18)}", f"ex:un:{item['id']}"), b("🗑 Удалить", f"ex:rm:{item['id']}")])
             else:
-                rows.append([b(f"✅ Сдал: {short(label, 30)}", f"ex:ok:{item['id']}"), b("✏️", f"it:o:{item['id']}:e")])
-    if items and ctx.is_owner and not past:
-        lines.append("")
-        lines.append("✅ — сдал · ✏️ — открыть: дата, текст, 🗑 удалить.")
+                rows.append([b(f"✅ {short(label, 18)}", f"ex:ok:{item['id']}"), b("✏️", f"it:o:{item['id']}:e")])
     if past:
         rows.append(nav("ex"))
     else:
         if ctx.is_owner:
             rows.append([b("➕ Экзамен", "add:k:exam"), b("➕ Зачёт", "add:k:credit")])
         rows.append([b("🗂 Прошедшие", "ex:p")])
-        rows.append(nav(ctx.back))
+        rows.append(nav(ctx.back or "dl"))
     await ctx.show("\n".join(lines).strip(), rows)
 
 
@@ -128,8 +119,7 @@ async def cmd_exams(ctx: Ctx) -> None:
 feature = Feature(
     name="exams",
     callbacks={"ex": on_exams},
-    menu=[MenuButton(menu_text, "ex", order=21, row="tasks")],
-    commands=[CommandSpec("exams", "Экзамены и зачёты", cmd_exams)],
+    commands=[CommandSpec("exams", "Экзамены и зачёты", cmd_exams, hidden=True)],
     summary=summary,
     summary_order=30,
 )

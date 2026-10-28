@@ -60,7 +60,10 @@ def with_back(data: str, back: str | None) -> str:
 
 
 def nav(back: str | None = None) -> list[InlineKeyboardButton]:
-    return [b("⬅ Назад", back or HOME), b("🏠 Меню", HOME)]
+    """[⬅ Назад] [🏠 Меню]; если «назад» и есть меню — одна кнопка, без дубля."""
+    if not back or back == HOME:
+        return [b("⬅ Назад", HOME)]
+    return [b("⬅ Назад", back), b("🏠 Меню", HOME)]
 
 
 def chunk(buttons: Iterable[InlineKeyboardButton], size: int) -> list[list[InlineKeyboardButton]]:
