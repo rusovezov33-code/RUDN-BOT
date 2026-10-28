@@ -52,6 +52,29 @@ def section_label(title: str) -> str:
     return short(str(title or "Раздел").split(" — ")[0], 28)
 
 
+SECTION_SHORT = {
+    "учебная литература": "Литература",
+    "литература": "Литература",
+    "лекции и конспекты": "Лекции",
+    "практики / лабораторные": "Практики",
+    "требования и баллы": "БРС",
+    "экзамен / зачёт": "Экзамен",
+    "ссылки": "Ссылки",
+}
+
+
+def section_button_label(section: dict) -> str:
+    """Короткая подпись раздела на карточке: «📖 Литература 1» (значок + имя + сколько)."""
+    title = str(section.get("title") or "Раздел").split(" — ")[0].strip()
+    icon, _, rest = title.partition(" ")
+    if not rest or icon.isalnum():  # без значка в начале
+        icon, rest = "", title
+    name = SECTION_SHORT.get(rest.strip().lower(), rest.strip())
+    count = section_size(section)
+    label = short(f"{icon} {name}".strip(), 18)
+    return f"{label} {count}"
+
+
 def common_link_row() -> list:
     return [url_btn(f"🔗 {link['title']}", link["url"]) for link in config.subjects().common_links if is_url(link.get("url"))]
 
@@ -116,6 +139,12 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
     if upcoming:
         first_row.append(maybe(f"📅 Пара {tu.fmt_dm(upcoming[0])}", f"d:{upcoming[0].isoformat()}|s:{si}"))
     rows.append(row_of(*first_row))
+    filled = [
+        b(section_button_label(section), f"s:{si}:{index}")
+        for index, section in enumerate(subject.get("sections") or [])
+        if isinstance(section, dict) and section_size(section)
+    ]
+    rows += chunk(filled, 2)  # материалы — сразу под первой строкой; пустые разделы не показываем
     score_btns = [
         maybe(f"📊 Баллы{' · ' + short(tu.short_name(c['name']), 10) if len(found) > 1 else ''}", f"sc:c:{c['key']}|s:{si}")
         for c in found
@@ -127,12 +156,6 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
         rows.append(row_of(tuis_btn))
         if score_btns:
             rows += chunk(score_btns, 2)
-    filled = [
-        b(short(section_label(section.get("title")), 20), f"s:{si}:{index}")
-        for index, section in enumerate(subject.get("sections") or [])
-        if isinstance(section, dict) and section_size(section)
-    ]
-    rows += chunk(filled, 2)  # пустые разделы не показываем
     if ctx.is_owner:
         rows.append(row_of(maybe("➕ Добавить", f"add:s:{si}")))
     rows = [row for row in rows if row]

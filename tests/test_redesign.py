@@ -170,3 +170,32 @@ def test_old_callbacks_still_work(use_data):
         before = len(bot.calls)
         cb = press(bot, data)
         assert len(bot.calls) > before or cb.answers, data
+
+
+def test_chemistry_card_has_literature_and_file_is_sent(use_data):
+    """«Куда литература пропала?» — непустые разделы снова на карточке, файл доходит до чата."""
+    data = use_data(LIVE_BACKUP)
+    si = index_of("Химия")
+    data["subjects"][si]["sections"][0]["files"] = [
+        {"file_id": "UCHEBNIK", "name": "uchebnik_organicheskaja_khimija_iach_afg.pdf", "mime": "application/pdf"}
+    ]
+    store.save()
+    bot = FakeBot()
+    press(bot, f"s:{si}")
+    pairs = [(btn.text, btn.callback_data) for btn in buttons(bot.last_screen().markup)]
+    lit = [(text, cb) for text, cb in pairs if text.startswith("📖 Литература")]
+    assert lit == [("📖 Литература 1", f"s:{si}:0")]
+    assert all(emoji_count(text) <= 1 for text, _ in pairs)
+    press(bot, f"s:{si}:0")
+    file_cbs = [cb for cb in callbacks(bot.last_screen().markup) if cb.startswith("file:")]
+    assert file_cbs == [f"file:{si}:0:0"]
+    press(bot, file_cbs[0])
+    doc = [c for c in bot.calls if c.kind == "document"][-1]
+    assert doc.kw["document"] == "UCHEBNIK"
+
+
+def test_empty_sections_hidden_on_card(use_data):
+    use_data(LIVE_BACKUP)
+    bot = FakeBot()
+    press(bot, f"s:{index_of('Химия')}")
+    assert not [cb for cb in callbacks(bot.last_screen().markup) if re.fullmatch(r"s:\d+:\d+", cb)]
