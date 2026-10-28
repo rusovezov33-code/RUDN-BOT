@@ -123,7 +123,11 @@ def test_latin_card_teacher_note_and_textbook(use_data):
     run(app.on_callback(FakeCallback(bot, f"s:{latin(data)}")))
     card = bot.last_screen().text
     assert "👤 Провоторова Елена Аркадьевна" in card
-    assert "учить слова" in card and "устный опрос" in card
+    # заметки из ТУИС/чата — в разделе «🎓 ТУИС», не в карточке
+    assert "учить слова" not in card
+    run(app.on_callback(FakeCallback(bot, f"s:{latin(data)}:t")))
+    screen = bot.last_screen().text
+    assert "учить слова" in screen and "устный опрос" in screen
     lit = tuis.literature_for("Латинский язык")
     assert lit["main"][0].startswith("Латинский язык. Учебно-методическое пособие по медицинской терминологии")
     assert lit["links"][0]["url"] == "https://esystem.rudn.ru/mod/resource/view.php?id=1174286"

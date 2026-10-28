@@ -402,6 +402,111 @@ def section_block(name: str, title: str) -> tuple[str, list[dict]]:
     return "", []
 
 
+# ---------------------------------------------------------------- раздел «🎓 ТУИС» в предмете
+# ключ части → (кнопка, заголовок экрана). Порядок = порядок кнопок.
+PARTS: dict[str, tuple[str, str]] = {
+    "brs": ("📋 БРС", "📋 БРС — требования и баллы"),
+    "fin": ("🎓 Итоговый контроль", "🎓 Итоговый контроль"),
+    "lit": ("📖 Литература (ТУИС)", "📖 Литература из ТУИС"),
+    "lec": ("🗂 Лекции", "🗂 Лекции — план"),
+    "lab": ("🧪 Занятия", "🧪 Практики / лабораторные — план"),
+}
+
+
+def part_text(name: str, key: str, today: date | None = None) -> tuple[str, list[dict]]:
+    """Полный текст одной части раздела ТУИС (и ссылки для кнопок)."""
+    if key == "brs":
+        return brs_text(name), []
+    if key == "fin":
+        return final_text(name), []
+    if key == "lit":
+        return literature_text(name)
+    if key == "lec":
+        return lectures_text(name, today), []
+    if key == "lab":
+        return labs_text(name, today), []
+    return "", []
+
+
+def parts_for(name: str, today: date | None = None) -> list[str]:
+    """Части ТУИС, по которым у предмета есть данные (по порядку PARTS)."""
+    out = []
+    for key in PARTS:
+        try:
+            text, links = part_text(name, key, today)
+        except Exception:  # битые данные одной части не должны ломать раздел
+            log.exception("tuis part %s/%s", name, key)
+            continue
+        if text or links:
+            out.append(key)
+    return out
+
+
+def has_section(name: str) -> bool:
+    """Показывать ли в карточке предмета кнопку «🎓 ТУИС»."""
+    if courses_for(name) or literature_for(name) or plan_for(name) or notes_for(name):
+        return True
+    if any(e.get("kind") == "exam" and tu.subjects_match(e.get("subject") or "", name) for e in events()):
+        return True
+    note = no_data_for(name) or ""
+    # «Документов в выгрузке ТУИС нет» — пустой раздел не показываем
+    return bool(note) and not note.startswith("Документов")
+
+
+def _next_row(rows: list[dict], today: date) -> tuple[date, dict] | None:
+    dated = [(d, r) for r in rows if (d := _row_date(r)) and d >= today]
+    return min(dated, key=lambda x: x[0]) if dated else None
+
+
+def _plan_summary(plan: dict, field: str, icon: str, label: str, today: date) -> str | None:
+    rows = [r for r in plan.get(field) or [] if isinstance(r, dict)]
+    if not rows:
+        return None
+    line = f"{icon} {label}: {len(rows)}"
+    nxt = None if plan.get("date_basis") == "regular" else _next_row(rows, today)
+    if nxt:
+        day, row = nxt
+        topic = re.sub(r"\s+", " ", str(row.get("topic") or "")).strip()
+        if len(topic) > 60:
+            topic = topic[:59].rstrip() + "…"
+        line += f" · ближайшее {tu.fmt_dm(day)} — {escape(topic)}"
+    elif plan.get("date_basis") == "regular":
+        line += " · даты основного потока, уточнить"
+    return line
+
+
+def overview_lines(data: dict, name: str, today: date | None = None) -> list[str]:
+    """Короткая сводка раздела «🎓 ТУИС»: по строке на часть, подробности — по кнопкам."""
+    today = today or tu.today()
+    lines: list[str] = []
+    found = courses_for(name)
+    for c in found:
+        mine = f" · мои баллы: <b>{fmt_num(total(data, c)[0])}</b>" if has_points(data, c) else ""
+        label = f"{escape(c['name'])}: " if len(found) > 1 else ""
+        lines.append(f"📋 БРС: {label}{brs_short(c)}{mine}")
+    if not found and no_data_for(name):
+        lines.append(f"📋 БРС: нет данных — {escape(no_data_for(name) or '')}")
+    exams = [e for e in events() if e.get("kind") == "exam" and tu.subjects_match(e.get("subject") or "", name)]
+    for event in exams:
+        day = event_date(event)
+        lines.append(f"🎓 {tu.fmt_dm(day) if day else 'дата не указана'} — {escape(event_text(event))}")
+    entry = literature_for(name)
+    if entry:
+        count = len(entry.get("main") or []) + len(entry.get("additional") or [])
+        lines.append(f"📖 Литература: {count} источн.")
+    plan = plan_for(name)
+    if plan:
+        for field, icon, label in (("lectures", "🗂", "Лекции"), ("labs", "🧪", "Занятия")):
+            line = _plan_summary(plan, field, icon, label, today)
+            if line:
+                lines.append(line)
+    notes = notes_for(name)
+    if notes:
+        lines.append("")
+        lines += [f"📌 {escape(note)}" for note in notes]
+    return lines
+
+
 # ---------------------------------------------------------------- контрольные → дедлайны/экзамены
 _QUOTED = re.compile(r"«([^»]+)»")
 

@@ -7,8 +7,8 @@ import subprocess
 from datetime import date
 
 
-from conftest import LIVE_BACKUP
-from fakes import FakeBot, FakeCallback, FakeMessage, callbacks
+from conftest import LIVE_BACKUP, TESTER_ID
+from fakes import FakeBot, FakeCallback, FakeMessage, buttons, callbacks
 from rudn import tuis
 from rudn.core import app, config, tasks, timeutil as tu
 from rudn.core.registry import REGISTRY
@@ -182,17 +182,71 @@ def test_subject_card_and_sections(use_data):
     bot = FakeBot()
     run(app.on_callback(FakeCallback(bot, "s:3")))
     shot = bot.last_screen()
-    assert "📋 БРС: Зачёт с оценкой" in shot.text
+    # карточка компактная: БРС/литература ТУИС — только в разделе «🎓 ТУИС»
+    assert "📋 БРС" not in shot.text and "Из документов ТУИС" not in shot.text and "Тюкавкина" not in shot.text
     cbs = callbacks(shot.markup)
-    assert "sc:c:chem|s:3" in cbs and "s:3:0" in cbs and "s:3:2" in cbs
-    run(app.on_callback(FakeCallback(bot, "s:3:2")))
-    assert "Из документов ТУИС" in bot.last_screen().text
+    assert "sc:c:chem|s:3" in cbs and "s:3:t" in cbs
+    assert "🎓 ТУИС" in [btn.text for btn in buttons(shot.markup)]
+    # пустые разделы (только ТУИС-данные) больше не показываются
+    assert "s:3:0" not in cbs and "s:3:2" not in cbs
+    sec = data["subjects"][3]["sections"][0]
+    assert subj.section_size(sec) == 0
+    # «Литература» — только свои материалы, без блока ТУИС
+    run(app.on_callback(FakeCallback(bot, "s:3:0")))
+    lit = bot.last_screen()
+    assert "ТУИС" not in lit.text and "Тюкавкина" not in lit.text and "Пока ничего нет" in lit.text
+    assert callbacks(lit.markup) == ["s:3", "home"]
     run(app.on_callback(FakeCallback(bot, "sc:c:chem|s:3")))
     assert "s:3" in callbacks(bot.last_screen().markup)
-    # пустой раздел с данными ТУИС теперь виден, без данных — нет
-    sec = data["subjects"][3]["sections"][0]
-    assert subj.section_size(sec) == 0 and subj.section_total("Химия", sec) > 0
-    assert subj.section_total("Физическая культура", data["subjects"][13]["sections"][0]) == 0
+
+
+def test_tuis_section_screens(use_data):
+    data = use_data(LIVE_BACKUP)
+    tuis.seed_events(data, date(2026, 10, 26))
+    bot = FakeBot()
+    run(app.on_callback(FakeCallback(bot, "s:3:t")))
+    shot = bot.last_screen()
+    assert "🎓 <b>ТУИС · Химия</b>" in shot.text
+    assert "📋 БРС: Зачёт с оценкой" in shot.text and "📖 Литература:" in shot.text
+    assert "Тюкавкина" not in shot.text  # сводка короткая, списки — по кнопкам
+    cbs = callbacks(shot.markup)
+    for key in ("brs", "lit", "lec", "lab"):
+        assert f"s:3:t:{key}" in cbs
+    assert "sc:c:chem|s:3:t" in cbs and cbs[-2:] == ["s:3", "home"]
+    run(app.on_callback(FakeCallback(bot, "s:3:t:lit")))
+    lit = bot.last_screen()
+    assert "Тюкавкина" in lit.text and callbacks(lit.markup) == ["s:3:t", "home"]
+    assert any(btn.url for btn in buttons(lit.markup))
+    run(app.on_callback(FakeCallback(bot, "s:3:t:lab")))
+    assert "ЛР №5" in bot.last_screen().text
+    run(app.on_callback(FakeCallback(bot, "s:3:t:lec")))
+    assert "буфер" in bot.last_screen().text
+    run(app.on_callback(FakeCallback(bot, "sc:c:chem|s:3:t")))
+    assert "s:3:t" in callbacks(bot.last_screen().markup)
+    # неизвестная часть → сводка, кривой индекс → «не найден»
+    run(app.on_callback(FakeCallback(bot, "s:3:t:zzz")))
+    assert "ТУИС · Химия" in bot.last_screen().text
+    run(app.on_callback(FakeCallback(bot, "s:99:t")))
+    assert "не найден" in bot.last_screen().text
+    # предмет без документов ТУИС — без кнопки
+    run(app.on_callback(FakeCallback(bot, "s:13")))
+    assert "s:13:t" not in callbacks(bot.last_screen().markup)
+    # «нет данных» с пояснением — кнопка есть, текст пояснения в разделе
+    org = next(i for i, x in enumerate(data["subjects"]) if "государствен" in x["name"])
+    run(app.on_callback(FakeCallback(bot, f"s:{org}")))
+    assert f"s:{org}:t" in callbacks(bot.last_screen().markup)
+    run(app.on_callback(FakeCallback(bot, f"s:{org}:t")))
+    assert "нет данных" in bot.last_screen().text
+
+
+def test_tuis_section_tester_can_view(use_data):
+    use_data(LIVE_BACKUP)
+    bot = FakeBot()
+    for data in ("s:3:t", "s:3:t:brs", "s:3:t:lit"):
+        cb = FakeCallback(bot, data, user_id=TESTER_ID)
+        run(app.on_callback(cb))
+        assert not any(alert for _, alert in cb.answers)
+    assert "БРС" in bot.last_screen().text or "Литература" in bot.last_screen().text
 
 
 def test_deadlines_and_exams_show_tuis(use_data):

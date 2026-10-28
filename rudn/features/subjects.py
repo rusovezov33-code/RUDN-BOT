@@ -28,17 +28,12 @@ def section_size(section: dict) -> int:
     return size
 
 
-def doc_block(name: str, section: dict) -> tuple[str, list[dict]]:
-    """Что добавить в раздел из документов ТУИС (БРС, литература, план занятий)."""
+def has_tuis(name: str) -> bool:
+    """Есть ли у предмета данные из документов ТУИС (кнопка «🎓 ТУИС»)."""
     try:
-        return tuis.section_block(name, str(section.get("title") or ""))
-    except Exception:  # данные ТУИС — дополнение, раздел должен открываться всегда
-        return "", []
-
-
-def section_total(name: str, section: dict) -> int:
-    text, links = doc_block(name, section)
-    return section_size(section) + (1 if text else 0) + len(links)
+        return tuis.has_section(name)
+    except Exception:  # данные ТУИС — дополнение, карточка должна открываться всегда
+        return False
 
 
 def file_count(subject: dict) -> int:
@@ -114,20 +109,6 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
             place = f" · {escape(lesson.place)}" if lesson.place else ""
             lines.append(f"🗓 {code} {escape(lesson.time)}{place} · {tu.WEEK_NOTE[lesson.weeks]}")
     found = tuis.courses_for(name)
-    if found:
-        lines.append("")
-        for c in found:
-            got, done_max = tuis.total(data, c)
-            mine = f" · мои баллы: <b>{tuis.fmt_num(got)}</b>" if tuis.has_points(data, c) else ""
-            label = f"{escape(c['name'])}: " if len(found) > 1 else ""
-            lines.append(f"📋 БРС: {label}{tuis.brs_short(c)}{mine}")
-    elif tuis.no_data_for(name):
-        lines.append("")
-        lines.append("📋 БРС: нет данных в документах ТУИС")
-    notes = tuis.notes_for(name)
-    if notes:
-        lines.append("")
-        lines += [f"📌 {escape(note)}" for note in notes]
     open_tasks = sorted(tasks.open_items(data, tasks.ALL_KINDS, si=si), key=tasks.sort_key)
     if open_tasks:
         lines.append("")
@@ -141,19 +122,21 @@ async def screen_subject(ctx: Ctx, si: int) -> None:
     rows.append(row_of(*first_row))
     if ctx.is_owner:
         rows.append(row_of(maybe("➕ Добавить: Д/з · контрольная · экзамен", f"add:s:{si}")))
-    if found:
-        rows.append(
-            row_of(
-                *[
-                    maybe(f"📊 Баллы{' · ' + short(tu.short_name(c['name']), 22) if len(found) > 1 else ''}", f"sc:c:{c['key']}|s:{si}")
-                    for c in found
-                ]
-            )
-        )
+    score_btns = [
+        maybe(f"📊 Баллы{' · ' + short(tu.short_name(c['name']), 22) if len(found) > 1 else ''}", f"sc:c:{c['key']}|s:{si}")
+        for c in found
+    ]
+    tuis_btn = maybe("🎓 ТУИС", f"s:{si}:t") if has_tuis(name) else None
+    if len(score_btns) == 1:
+        rows.append(row_of(tuis_btn, *score_btns))  # «🎓 ТУИС» и «📊 Баллы» — одной строкой
+    else:
+        rows.append(row_of(tuis_btn))
+        if score_btns:
+            rows.append(row_of(*score_btns))
     filled = [
-        b(f"{section_label(section.get('title'))} ({section_total(name, section)})", f"s:{si}:{index}")
+        b(f"{section_label(section.get('title'))} ({section_size(section)})", f"s:{si}:{index}")
         for index, section in enumerate(subject.get("sections") or [])
-        if isinstance(section, dict) and section_total(name, section)
+        if isinstance(section, dict) and section_size(section)
     ]
     if filled:
         rows += chunk(filled, 2)
@@ -177,20 +160,15 @@ async def screen_section(ctx: Ctx, si: int, j: int) -> None:
     body = escape(str(section.get("text") or ""))
     files = section.get("files") or []
     links = own_links(section)
-    doc_text, doc_links = doc_block(subject.get("name") or "", section)
     lines = [f"<b>{escape(subject.get('name') or '')}</b>", escape(section.get("title") or "")]
     if body:
         lines += ["", body]
-    elif not (links or files or doc_text):
+    elif not (links or files):
         lines += ["", "Пока ничего нет."]
-    if doc_text:
-        lines += ["", "📑 <b>Из документов ТУИС:</b>", doc_text]
     if files and config.public_base():
         lines.append("\nНажми на файл — телефон предложит приложение.")
     elif files:
         lines.append("\nНажми на файл — бот пришлёт его сообщением.")
-    own = {link["url"] for link in links}
-    links = links + [link for link in doc_links if is_url(link.get("url")) and link["url"] not in own]
     rows = [[url_btn(f"🔗 {short(link.get('title') or link['url'], 40)}", link["url"])] for link in links]
     for index, meta in enumerate(files):
         _, file_name = file_meta(meta)
@@ -201,11 +179,80 @@ async def screen_section(ctx: Ctx, si: int, j: int) -> None:
     await ctx.show("\n".join(lines), rows)
 
 
+async def screen_tuis(ctx: Ctx, si: int) -> None:
+    """🎓 ТУИС предмета: короткая сводка + кнопки на БРС, литературу, планы, итоговый контроль."""
+    data = ctx.data
+    try:
+        subject = data["subjects"][si]
+    except (IndexError, KeyError, TypeError):
+        await ctx.show("Предмет не найден.", [nav("subs")])
+        return
+    name = subject.get("name") or ""
+    try:
+        summary = tuis.overview_lines(data, name)
+        parts = tuis.parts_for(name)
+    except Exception:
+        summary, parts = [], []
+    lines = [f"🎓 <b>ТУИС · {escape(name)}</b>", "<i>Из документов курса в ТУИС.</i>", ""]
+    lines += summary or ["Документов ТУИС по предмету нет."]
+    rows = chunk([b(tuis.PARTS[key][0], f"s:{si}:t:{key}") for key in parts], 2)
+    found = tuis.courses_for(name)
+    if found:
+        rows.append(
+            row_of(
+                *[
+                    maybe(f"📊 Мои баллы{' · ' + short(tu.short_name(c['name']), 18) if len(found) > 1 else ''}", f"sc:c:{c['key']}|s:{si}:t")
+                    for c in found
+                ]
+            )
+        )
+    rows.append(nav(f"s:{si}"))
+    await ctx.show("\n".join(lines), rows)
+
+
+async def screen_tuis_part(ctx: Ctx, si: int, key: str) -> None:
+    data = ctx.data
+    try:
+        subject = data["subjects"][si]
+    except (IndexError, KeyError, TypeError):
+        await ctx.show("Предмет не найден.", [nav("subs")])
+        return
+    if key not in tuis.PARTS:
+        await screen_tuis(ctx, si)
+        return
+    name = subject.get("name") or ""
+    try:
+        text, links = tuis.part_text(name, key)
+    except Exception:
+        text, links = "", []
+    lines = [f"<b>{escape(name)}</b> · ТУИС", f"<b>{tuis.PARTS[key][1]}</b>", "", text or "Нет данных."]
+    rows = [
+        [url_btn(f"🔗 {short(link.get('title') or link['url'], 40)}", link["url"])]
+        for link in links
+        if isinstance(link, dict) and is_url(link.get("url"))
+    ]
+    rows.append(nav(f"s:{si}:t"))
+    await ctx.show("\n".join(lines), rows)
+
+
 async def on_subjects(ctx: Ctx, args: list[str]) -> None:
     await screen_subjects(ctx)
 
 
 async def on_subject(ctx: Ctx, args: list[str]) -> None:
+    if len(args) >= 2 and args[1] == "t":  # s:{si}:t — раздел ТУИС, s:{si}:t:{часть}
+        try:
+            si = int(args[0])
+            if si < 0:
+                raise ValueError
+        except ValueError:
+            await ctx.show("Предмет не найден.", [nav("subs")])
+            return
+        if len(args) >= 3:
+            await screen_tuis_part(ctx, si, args[2])
+        else:
+            await screen_tuis(ctx, si)
+        return
     try:
         numbers = [int(value) for value in args[:2]]
         if not numbers or min(numbers) < 0:
