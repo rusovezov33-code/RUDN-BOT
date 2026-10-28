@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Awaitable, Callable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 if TYPE_CHECKING:  # pragma: no cover
     from aiogram import Router
@@ -60,6 +60,9 @@ class Feature:
     summary_order: int = 100
     text_states: dict[str, TextHandler] = field(default_factory=dict)
     router: "Router | None" = None
+    # Необязательный хук запуска: вызывается один раз после загрузки данных
+    # (аргумент — Store). Ошибка в хуке логируется и не мешает старту бота.
+    on_startup: Callable[[Any], None] | None = None
 
 
 def prefix_of(callback_data: str) -> str:

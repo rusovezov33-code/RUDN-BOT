@@ -6,10 +6,14 @@
 """
 
 FEATURES: list[str] = [
+    "soon",
     "schedule",
     "deadlines",
     "exams",
     "subjects",
+    "scores",
+    "item",
     "pages",
+    "lessons",  # до admin: её router ловит стикеры/фото во время урока раньше admin
     "admin",
 ]

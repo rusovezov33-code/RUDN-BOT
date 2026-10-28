@@ -2,6 +2,7 @@
 контекст экрана Ctx и «живое» меню (одно сообщение-меню на чат)."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from html import escape, unescape
@@ -13,6 +14,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, LinkPrevie
 
 from . import config, pending
 from .registry import REGISTRY, RegistryError
+from . import access
 from .storage import Store, store as default_store
 
 log = logging.getLogger(__name__)
@@ -71,8 +73,15 @@ def kb(rows: Iterable[list[InlineKeyboardButton]]) -> InlineKeyboardMarkup:
 
 
 def short(text: str, limit: int) -> str:
+    """Обрезка до limit символов по границе слова (если граница не слишком далеко)."""
     text = " ".join(str(text or "").split())
-    return text if len(text) <= limit else text[: limit - 1] + "…"
+    if len(text) <= limit:
+        return text
+    cut = text[: limit - 1]
+    space = cut.rfind(" ")
+    if space >= limit * 0.5:
+        cut = cut[:space]
+    return cut.rstrip(" ,.;:—–-(") + "…"
 
 
 _TAG = re.compile(r"<[^>]+>")
@@ -120,28 +129,52 @@ class Ctx:
         back: str | None = None,
         store: Store | None = None,
         edit_live: bool = False,
+        username: str | None = None,
     ) -> None:
         self.bot = bot
         self.user_id = user_id
+        self.username = username
+        self.role = access.role(user_id, username)
         self.chat_id = chat_id
         self.callback = callback
         self.message = message
         self.args = args or []
         self.back = back
-        self.store = store or default_store
+        # не-владелец никогда не получает настоящий data.json: только копию,
+        # а его save() пишет лишь access.json (свой прогресс уроков тестера)
+        self.store = store or (
+            default_store if self.role == access.OWNER else access.SandboxStore(user_id, self.role == access.TESTER)
+        )
         self.edit_live = edit_live
         self._answered = False
+        # всплывающее уведомление к ответу на нажатие: уходит вместе с показом
+        # экрана (параллельно правке), а не отдельным запросом перед ним
+        self.toast: str | None = None
+        # True — в обработчике нажатия/текста: ctx.save() откладывается до flush()
+        # после показа экрана (fsync data.json не задерживает ответ)
+        self.defer_save = False
+        self._dirty = False
+        # короткая строка-уведомление над следующим экраном (напр. «Ввод отменён»)
+        self.notice: str | None = None
 
     @classmethod
     def from_message(cls, message: Any, **kw: Any) -> "Ctx":
         user = getattr(message, "from_user", None)
-        return cls(message.bot, user.id if user else None, message.chat.id, message=message, **kw)
+        return cls(
+            message.bot,
+            user.id if user else None,
+            message.chat.id,
+            message=message,
+            username=getattr(user, "username", None) if user else None,
+            **kw,
+        )
 
     @classmethod
     def from_callback(cls, callback: Any, **kw: Any) -> "Ctx":
         msg = callback.message
         chat_id = msg.chat.id if msg is not None else callback.from_user.id
-        return cls(callback.bot, callback.from_user.id, chat_id, callback=callback, **kw)
+        user = callback.from_user
+        return cls(callback.bot, user.id, chat_id, callback=callback, username=getattr(user, "username", None), **kw)
 
     # --- данные / права
     @property
@@ -149,17 +182,40 @@ class Ctx:
         return self.store.data
 
     def save(self) -> None:
+        if self.defer_save:
+            self._dirty = True
+            return
         self.store.save()
+
+    async def flush(self) -> None:
+        """Записать отложенные изменения (после того как экран уже показан)."""
+        if not self._dirty:
+            return
+        self._dirty = False
+        save_async = getattr(self.store, "save_async", None)
+        if save_async is not None:
+            await save_async()
+        else:
+            self.store.save()
 
     @property
     def is_owner(self) -> bool:
         owner = config.owner_id()
         return owner is not None and self.user_id == owner
 
+    @property
+    def is_tester(self) -> bool:
+        return self.role == access.TESTER
+
+    @property
+    def can_learn(self) -> bool:
+        """Уроки: владелец и тестер (у тестера — свой прогресс)."""
+        return self.role in (access.OWNER, access.TESTER)
+
     async def require_owner(self) -> bool:
         if self.is_owner:
             return True
-        await self.answer("Нет доступа", alert=True)
+        await self.answer(access.TESTER_DENIED if self.is_tester else "Нет доступа", alert=True)
         return False
 
     # --- ответы
@@ -172,6 +228,8 @@ class Ctx:
         if self._answered:
             return
         self._answered = True
+        if text is None:
+            text, self.toast = self.toast, None
         try:
             await self.callback.answer(text=text, show_alert=alert)
         except TelegramAPIError:
@@ -180,9 +238,24 @@ class Ctx:
     async def show(self, text: str, rows: Iterable[list[InlineKeyboardButton]], *, new: bool = False) -> None:
         """Показать экран: правим текущее сообщение-меню, иначе отправляем новое,
         а старое меню удаляем — в чате всегда одно живое меню."""
+        if self.notice:
+            text = f"{self.notice}\n\n{text}"
+            self.notice = None
         text = clip_html(text)
         markup = kb(rows)
-        await self.answer()
+        # ответ на нажатие и правку сообщения шлём параллельно: на медленной сети
+        # это экономит целый запрос к Telegram (особенно заметно на «⬅ Назад»)
+        answering = None
+        if self.callback is not None and not self._answered:
+            answering = asyncio.ensure_future(self.answer())
+            await asyncio.sleep(0)  # пусть ответ уйдёт первым, правка — следом, не дожидаясь
+        try:
+            await self._show(text, markup, new)
+        finally:
+            if answering is not None:
+                await answering
+
+    async def _show(self, text: str, markup: Any, new: bool) -> None:
         target = None
         if not new:
             if self.callback is not None and self.callback.message is not None:
@@ -205,7 +278,7 @@ class Ctx:
                 if "not modified" in str(error).lower():
                     await self._set_live(target)
                     return
-                log.warning("edit failed, sending new: %s", error)
+                log.warning("edit of %s failed, sending new: %s", target, error)
         sent = await self.bot.send_message(
             self.chat_id, text, reply_markup=markup, parse_mode=ParseMode.HTML, link_preview_options=NO_PREVIEW
         )

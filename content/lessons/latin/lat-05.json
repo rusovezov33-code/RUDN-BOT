@@ -1,0 +1,91 @@
+{
+ "id": "lat-05",
+ "subject": "Латинский язык",
+ "order": 5,
+ "target": {
+  "key": "lat-kr1-chat",
+  "label": "КР",
+  "date": "2026-11-03"
+ },
+ "title": "Суффиксы существительных и прилагательных",
+ "sources": [
+  "Пособие «Латинский язык» (уч.-метод. пособие по мед. терминологии): Тема 8, с. 57–60"
+ ],
+ "blocks": [
+  {
+   "type": "explain",
+   "title": "Суффиксы существительных",
+   "text": "<b>Уменьшительные</b>: -ul-, -ol-, -ell-, -ill-, -cul-. Род сохраняется, слово переходит в 1 или 2 скл.:\ncaput → capitulum (головка), fovea → foveola (ямочка), canalis → canaliculus (каналец), lamina → lamella (пластинка).\n⚠️ macula (пятно) — не уменьшительное.\n\n<b>От глаголов</b> (flecto — сгибаю):\n<b>-or</b> (oris m) — кто действует: flexor — сгибатель;\n<b>-io</b> (onis f) — действие: flexio — сгибание;\n<b>-ura</b> — результат: flexura — изгиб;\n<b>-men, -mentum</b> — средство/результат: foramen, tegmen, ligamentum (с. 57–58)."
+  },
+  {
+   "type": "explain",
+   "title": "Суффиксы прилагательных",
+   "text": "«относящийся к…»: <b>-al-</b> (nasalis — носовой), <b>-ar-</b> — если в основе есть l (clavicularis — ключичный), <b>-in-</b> (palatinus — нёбный), <b>-ic-</b> (thoracicus — грудной), <b>-e-</b> (pharyngeus — глоточный).\n\nОсобые значения (с. 59–60):\n<b>-at-</b> — снабжённый: caudatus — хвостатый;\n<b>-os-</b> — изобилующий: squamosus — чешуйчатый;\n<b>-ide-, -form-</b> — похожий: thyr(e)oideus — щитовидный, cruciformis — крестообразный;\n<b>-fer</b> — несущий: lactifer — млечный (несущий молоко);\n<b>-e-</b> (краткий) — из чего сделано: cartilagineus — хрящевой."
+  },
+  {
+   "type": "example",
+   "title": "Разбираем слова",
+   "text": "flex-<b>or</b> — сгибатель (кто сгибает)\nflex-<b>io</b> — сгибание (действие)\nflex-<b>ura</b> — изгиб (результат)\n\nnas-<b>al</b>-is — носовой\nscapul-<b>ar</b>-is — лопаточный (в основе l → -ar-)\nsquam-<b>os</b>-us — чешуйчатый\nfove-<b>ol</b>-a — ямочка\ncanali-<b>cul</b>-i dentales — зубные канальцы (с. 60, упр. 6)"
+  },
+  {
+   "type": "choice",
+   "q": "Что обозначает суффикс <b>-or</b> в слове <b>flexor</b>?",
+   "options": [
+    "действующее лицо/предмет — «сгибатель»",
+    "действие — «сгибание»",
+    "результат — «изгиб»"
+   ],
+   "correct": 0,
+   "explain": "-or (oris m) — тот, кто действует; действие — -io (flexio), результат — -ura (flexura)."
+  },
+  {
+   "type": "choice",
+   "q": "Как правильно образовать «лопаточный» от scapula?",
+   "options": [
+    "scapulalis",
+    "scapularis",
+    "scapulinus"
+   ],
+   "correct": 1,
+   "explain": "В основе есть l → берём -ar-, а не -al- (как clavicularis), с. 59."
+  },
+  {
+   "type": "text",
+   "q": "Напиши прилагательное <b>«носовой»</b> (от nasus) в форме м. р. Nom. Sing.",
+   "accept": [
+    "nasalis"
+   ],
+   "explain": "nas- + -al- + -is: nasalis, e (2 группа)."
+  },
+  {
+   "type": "choice",
+   "q": "<b>squamosus</b> значит…",
+   "options": [
+    "похожий на чешую",
+    "изобилующий чешуёй (чешуйчатый)",
+    "несущий чешую"
+   ],
+   "correct": 1,
+   "explain": "-os- — «изобилующий чем-то». «Похожий» — -ide-/-form-, «несущий» — -fer."
+  },
+  {
+   "type": "choice",
+   "q": "Какое слово — <b>уменьшительное</b> от fovea (ямка)?",
+   "options": [
+    "foveola",
+    "foveatus",
+    "foveosus"
+   ],
+   "correct": 0,
+   "explain": "Суффикс -ol- + род сохраняется (f): foveola — ямочка."
+  },
+  {
+   "type": "think",
+   "q": "Переведи <b>canaliculi dentales</b> и разбери оба слова по составу.",
+   "answer": "<b>зубные канальцы</b>. canali-<b>cul</b>-i — уменьшительный суффикс -cul- от canalis (канал → каналец), Nom. Plur. 2 скл. (canaliculus, i m); dent-<b>al</b>-es — суффикс -al- «относящийся к зубу», Nom. Plur. прил. 2 группы (dentalis, e). Тема 8, упр. 6.",
+   "accept": [
+    "зубные канальцы"
+   ]
+  }
+ ]
+}

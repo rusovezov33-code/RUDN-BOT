@@ -6,3 +6,4 @@ venv/
 *.tmp
 .data.json.*.tmp
 data.json.corrupt-*
+access.json

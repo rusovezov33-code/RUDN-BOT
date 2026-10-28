@@ -13,9 +13,13 @@ from . import timeutil
 KINDS: dict[str, tuple[str, str]] = {
     "hw": ("📝", "Д/з"),
     "lab": ("🧪", "Лаба"),
+    "ctrl": ("✍️", "Контрольная"),
     "exam": ("🎓", "Экзамен"),
 }
-DEADLINE_KINDS = ("hw", "lab")
+# "ctrl" — контрольная / тест / рубежный контроль (в т.ч. из документов ТУИС).
+# Старая версия бота не знает "ctrl" и покажет такие записи как Д/з — это безопасно.
+DEADLINE_KINDS = ("hw", "lab", "ctrl")
+ALL_KINDS = ("hw", "lab", "ctrl", "exam")
 EXAM_TYPES = {"exam": "Экзамен", "credit": "Зачёт"}
 
 BUCKETS: list[tuple[str, str]] = [
@@ -207,7 +211,62 @@ def mark_done(item: dict, done: bool = True) -> None:
         item.pop("done_at", None)
 
 
+_LABEL_SEPARATORS = (" — ", " – ", " - ", ": ", ", ")
+
+
+def body_text(item: dict) -> str:
+    """Текст пункта без повторения типа в начале: при подписи «Зачёт» текст
+    «Зачёт — письменная работа» показывается как «письменная работа» (без «Зачёт — Зачёт»)."""
+    text = str(item.get("text") or "").strip()
+    label = kind_label(item)
+    lowered = text.casefold()
+    if lowered.startswith(label.casefold()):
+        rest = text[len(label):]
+        for sep in _LABEL_SEPARATORS:
+            if rest.startswith(sep):
+                return rest[len(sep):].strip() or text
+    return text
+
+
+def titled_text(item: dict) -> str:
+    """«Зачёт — письменная работа»: тип + текст без дублирования
+    (не «Зачёт — Зачёт — …» и не «Зачёт — Зачётное занятие»)."""
+    label = kind_label(item)
+    text = str(item.get("text") or "").strip()
+    if text.casefold().startswith(label.casefold()):
+        return text  # «Зачётное занятие …», «Экзамен (25 б.)» — тип уже назван
+    body = body_text(item)
+    return f"{label} — {body}" if body else label
+
+
+DELETED_KEY = "tuis_deleted"
+
+
+def delete_item(data: dict, item: dict) -> None:
+    """Удалить пункт; для засеянного из ТУИС запомнить ключ, чтобы он не вернулся."""
+    items = data.get("homework") or []
+    if item in items:
+        items.remove(item)
+    key = item.get("tuis_key")
+    if key:
+        deleted = data.setdefault(DELETED_KEY, [])
+        if key not in deleted:
+            deleted.append(key)
+
+
+DATE_HINTS = {"regular": " ⚠️", "week": " ≈"}
+
+
+def date_mark(item: dict) -> str:
+    """« ⚠️» — дата основного потока (уточнить), « ≈» — вычислена по номеру недели."""
+    return DATE_HINTS.get(str(item.get("date_hint") or ""), "") if item_date(item) else ""
+
+
 def due_text(item: dict, today: date) -> str:
+    return _due_text(item, today) + date_mark(item)
+
+
+def _due_text(item: dict, today: date) -> str:
     due = item_date(item)
     if due is None:
         day_num = item.get("day")

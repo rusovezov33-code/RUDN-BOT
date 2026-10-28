@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib
 import logging
 import os
+import time
 from typing import Any
 
 from aiogram import Bot, Dispatcher, F, Router
@@ -20,7 +21,7 @@ from aiogram.types import (
     Message,
 )
 
-from . import config, home, pending, timeutil
+from . import access, config, home, pending, testers, timeutil
 from .registry import REGISTRY, CommandSpec, Registry
 from .storage import store
 from .ui import Ctx
@@ -37,6 +38,7 @@ def build_registry(feature_modules: list[str] | None = None, registry: Registry 
 
         feature_modules = FEATURES
     registry.add(home.feature)
+    registry.add(testers.feature)
     for name in feature_modules:
         module = importlib.import_module(f"rudn.features.{name}")
         registry.add(module.feature)
@@ -44,14 +46,46 @@ def build_registry(feature_modules: list[str] | None = None, registry: Registry 
     return registry
 
 
+def run_startup_hooks(registry: Registry = REGISTRY, target: Any = None) -> None:
+    """Хуки запуска фич (например, подмешать контрольные из ТУИС). Ошибка — только в лог."""
+    target = target or store
+    for feature in registry.features:
+        if feature.on_startup is None:
+            continue
+        try:
+            feature.on_startup(target)
+        except Exception:
+            log.exception("on_startup %s failed", feature.name)
+
+
+async def guard_message(ctx: Ctx, message: Message, command: str | None) -> bool:
+    """Центральная проверка доступа для сообщений. True — можно обрабатывать дальше.
+    Чужим бот не показывает ничего; на /start — запрос доступа владельцу."""
+    if ctx.role == access.OWNER:
+        return True
+    if ctx.role is None:
+        if command == "start":
+            await testers.stranger_start(ctx, getattr(message, "from_user", None))
+        return False
+    if command is not None and command not in access.TESTER_COMMANDS:
+        await ctx.delete_incoming()
+        ctx.clear_pending()
+        await home.screen_home(ctx, notice=access.TESTER_DENIED)
+        return False
+    return True
+
+
 def _command_handler(spec: CommandSpec):
     async def handler(message: Message) -> None:
         ctx = Ctx.from_message(message)
+        if not await guard_message(ctx, message, spec.name):
+            return
         await ctx.delete_incoming()
-        if spec.name != "cancel":
+        if spec.name != "cancel" and ctx.pending() is not None:
             # любая команда прерывает незаконченный ввод — иначе следующий текст
-            # молча сохранится как д/з
+            # молча сохранится как д/з; об этом коротко сообщаем
             ctx.clear_pending()
+            ctx.notice = home.CANCELLED
         try:
             await spec.handler(ctx)
         except Exception:
@@ -64,15 +98,31 @@ def _command_handler(spec: CommandSpec):
 
 async def on_unknown_command(message: Message) -> None:
     ctx = Ctx.from_message(message)
+    if ctx.role is None:
+        return
     await ctx.delete_incoming()
-    await home.screen_home(ctx)
+    had = ctx.pending() is not None
+    await home.screen_home(ctx, notice=home.CANCELLED if had else None)
 
 
 async def on_text(message: Message) -> None:
     ctx = Ctx.from_message(message)
+    if ctx.role is None:
+        return
+    ctx.defer_save = True
+    try:
+        await _on_text(ctx, message)
+    finally:
+        try:
+            await ctx.flush()
+        except Exception:
+            log.exception("save after text failed")
+
+
+async def _on_text(ctx: Ctx, message: Message) -> None:
     expired = pending.is_expired(ctx.user_id)
     state = ctx.pending()
-    if state is not None and ctx.is_owner:
+    if state is not None and (ctx.is_owner or (ctx.is_tester and state.name in access.TESTER_TEXT_STATES)):
         found = REGISTRY.text_states.get(state.name)
         if found:
             ctx.edit_live = True
@@ -85,15 +135,50 @@ async def on_text(message: Message) -> None:
                 await home.screen_home(ctx)
             return
     if expired:
-        await message.answer("⌛ Ввод устарел (прошло больше 15 минут). Начни заново из меню.")
-    await home.screen_home(ctx)
+        await message.answer("⌛ Ввод устарел (слишком долго не было ответа). Начни заново из меню.")
+        await home.screen_home(ctx)
+        return
+    # текст без ожидания ввода — не молчим, а подсказываем
+    await home.screen_home(ctx, notice=home.stray_hint(ctx))
+
+
+SLOW_UPDATE_SECONDS = 0.7
+
+
+def _log_slow(kind: str, what: str, started: float, shown: float | None = None) -> None:
+    total = time.monotonic() - started
+    if total >= SLOW_UPDATE_SECONDS:
+        part = f", до показа {shown - started:.2f}s" if shown is not None else ""
+        log.warning("slow %s %r: %.2fs%s", kind, what, total, part)
+
+
+SLOW_API_SECONDS = 1.0
+
+
+async def log_slow_api(make_request, bot, method):
+    """Логирует медленные запросы к Telegram API (видно, где теряется время)."""
+    started = time.monotonic()
+    try:
+        return await make_request(bot, method)
+    finally:
+        spent = time.monotonic() - started
+        if spent >= SLOW_API_SECONDS and type(method).__name__ != "GetUpdates":
+            log.warning("slow telegram %s: %.2fs", type(method).__name__, spent)
 
 
 async def on_callback(callback: CallbackQuery) -> None:
+    started = time.monotonic()
     raw = callback.data or ""
     main, _, back = raw.partition("|")
     parts = main.split(":")
     ctx = Ctx.from_callback(callback, args=parts[1:], back=back or None)
+    ctx.defer_save = True
+    if ctx.role is None:
+        await ctx.answer()  # чужим — ничего, только гасим «часики»
+        return
+    if ctx.role == access.TESTER and not access.tester_may(parts[0], ctx.args):
+        await ctx.answer(access.TESTER_DENIED, alert=True)
+        return
     state = ctx.pending()
     if state is not None and parts[0] not in state.data.get("keep", ()):
         ctx.clear_pending()
@@ -115,6 +200,12 @@ async def on_callback(callback: CallbackQuery) -> None:
         await _safe_home(ctx)
     finally:
         await ctx.answer()
+        shown = time.monotonic()
+        try:
+            await ctx.flush()
+        except Exception:
+            log.exception("save after %r failed", raw)
+        _log_slow("callback", raw, started, shown)
 
 
 async def _safe_home(ctx: Ctx) -> None:
@@ -172,6 +263,7 @@ async def main() -> None:
         raise SystemExit("Задай BOT_TOKEN")
     data = store.load()
     registry = build_registry()
+    run_startup_hooks(registry, store)
     files = sum(len(sec.get("files") or []) for s in data["subjects"] for sec in s.get("sections") or [])
     log.info(
         "data=%s subjects=%s files=%s tasks=%s week=%s features=%s",
@@ -183,6 +275,7 @@ async def main() -> None:
         ",".join(f.name for f in registry.features),
     )
     bot = Bot(token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    bot.session.middleware(log_slow_api)
     dispatcher = build_dispatcher(registry)
     await set_commands(bot, registry)
     http = ClientSession(timeout=ClientTimeout(total=120))

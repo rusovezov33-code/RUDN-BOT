@@ -5,11 +5,13 @@
 """
 from __future__ import annotations
 
+import asyncio
 import copy
 import json
 import logging
 import os
 import shutil
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -138,14 +140,18 @@ def encode(data: dict) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2) + "\n"
 
 
+_WRITE_LOCK = threading.Lock()
+
+
 def atomic_write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    with tmp.open("w", encoding="utf-8") as fh:
-        fh.write(text)
-        fh.flush()
-        os.fsync(fh.fileno())
-    os.replace(tmp, path)
+    with _WRITE_LOCK:  # запись бывает и из потока (save_async) — по одной за раз
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+        with tmp.open("w", encoding="utf-8") as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
 
 
 class Store:
@@ -210,6 +216,21 @@ class Store:
         if self._data is None:
             return
         atomic_write(self.path, encode(self._data))
+
+    async def save_async(self) -> None:
+        """Как save(), но запись с fsync — в отдельном потоке, не блокируя бота.
+        Снимок данных берётся сразу (в потоке цикла), поэтому порядок сохранений верный."""
+        if self._data is None:
+            return
+        text = encode(self._data)
+        lock = self._async_lock()
+        async with lock:
+            await asyncio.to_thread(atomic_write, self.path, text)
+
+    def _async_lock(self) -> asyncio.Lock:
+        if getattr(self, "_alock", None) is None:
+            self._alock = asyncio.Lock()
+        return self._alock
 
     def replace(self, raw: Any) -> dict[str, Any]:
         self._data = normalize(raw)
