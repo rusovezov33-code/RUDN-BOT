@@ -24,6 +24,13 @@ def _start(time_str: str) -> str:
     return str(time_str).split("–")[0].split("-")[0].strip()
 
 
+def place_tail(place: str) -> str:
+    """« · АТИ ауд. 251» или « · онлайн» (ДОТ); без места — пусто."""
+    if dresscode.is_online(place):
+        return " · онлайн"
+    return f" · {escape(str(place).strip())}" if str(place or "").strip() else ""
+
+
 def home_name(subject: str) -> str:
     """Название для главного экрана: полное, а длинное — коротким именем."""
     name = str(subject or "").split(" / ")[0].strip()  # «Введение в специальность / Ознакомительная практика»
@@ -42,16 +49,15 @@ def day_lines(data: dict, day: date, moment: datetime, detailed: bool) -> list[s
         state = tu.lesson_state(lesson.time, moment) if is_today else "future"
         name = escape(lesson.subject if detailed else home_name(lesson.subject))
         time_text = escape(lesson.time if detailed else _start(lesson.time))
+        where = place_tail(lesson.place) if detailed else ""
         if state == "now":
             left = tu.minutes_until(lesson.time, moment, end=True) or 0
             tail = f", ещё {tu.human_minutes(left)}" if detailed else ""
-            lines.append(f"<b>{time_text}  {name}</b>{tail}")
+            lines.append(f"<b>{time_text}  {name}</b>{where}{tail}")
         elif state == "past":
-            lines.append(f"<s>{time_text}</s>  {name}")
+            lines.append(f"<s>{time_text}</s>  {name}{where}")
         else:
-            lines.append(f"{time_text}  {name}")
-        if detailed and lesson.place:
-            lines.append(f"      {escape(lesson.place)}")
+            lines.append(f"{time_text}  {name}{where}")
         for item in due:
             if id(item) in shown:
                 continue
@@ -230,7 +236,7 @@ async def on_event_delete(ctx: Ctx, args: list[str]) -> None:
 
 
 def summary(ctx: Ctx) -> list[str]:
-    """Главный экран: пары на сегодня (МСК) — «время  предмет», без аудиторий;
+    """Главный экран: пары на сегодня (МСК) — «начало–конец  предмет · корпус ауд.» (ДОТ — «· онлайн»);
     закончившиеся не показываем, текущая — жирным; под ними «Взять: …» для очных пар."""
     moment = tu.now()
     lessons = tu.lessons_for(moment.date())
@@ -242,12 +248,12 @@ def summary(ctx: Ctx) -> list[str]:
     lines = []
     for lesson in left:
         name = escape(home_name(lesson.subject))
-        time_text = escape(_start(lesson.time))
-        online = " · онлайн" if dresscode.is_online(lesson.place) else ""
+        time_text = escape(lesson.time)
+        where = place_tail(lesson.place)
         if tu.lesson_state(lesson.time, moment) == "now":
-            lines.append(f"<b>{time_text}  {name}</b>{online}")
+            lines.append(f"<b>{time_text}  {name}</b>{where}")
         else:
-            lines.append(f"{time_text}  {name}{online}")
+            lines.append(f"{time_text}  {name}{where}")
     take = dresscode.take_line(left)
     if take:
         lines.append("")

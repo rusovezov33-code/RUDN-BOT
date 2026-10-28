@@ -72,9 +72,22 @@ def test_main_screen_28_10(use_data):
     press(bot, "home")
     text = bot.last_screen().text
     assert text.startswith("<b>Среда, 28 октября</b> · верхняя неделя\n\n")
-    assert "12:00  Введение в специальность" in text and "19:30  Основы военной подготовки · онлайн" in text
+    # как раньше: начало–конец, предмет, корпус и аудитория; ДОТ — «онлайн»
+    assert "\n12:00–14:50  Введение в специальность · АТИ ауд. 251\n" in text
+    assert "\n15:00–16:20  РКИ · ЕГФ ауд. 359\n16:30–17:50  РКИ · ЕГФ ауд. 359\n" in text
+    assert "\n19:30–20:50  Основы военной подготовки · онлайн\n" in text and "ДОТ" not in text
     assert "\nВзять: халат, шапочка, сменка" in text
-    assert "АТИ" not in text and "ауд." not in text  # адреса — только по нажатию
+
+
+def test_tomorrow_shows_rooms_inline(use_data):
+    use_data(LIVE_BACKUP)
+    tu.set_now(datetime(2026, 10, 27, 20, 0, tzinfo=tu.MSK))
+    bot = FakeBot()
+    press(bot, "d:tm")
+    text = bot.last_screen().text
+    assert "\n15:00–16:20  РКИ · ЕГФ ауд. 359\n" in text
+    assert "Основы военной подготовки · онлайн" in text
+    assert emoji_count(text.split("\n", 1)[1]) == 0
 
 
 def test_button_labels_short_and_one_emoji(use_data):
