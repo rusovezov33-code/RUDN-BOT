@@ -20,7 +20,7 @@ from rudn import lessons_plan as planner
 from rudn.core import pending
 from rudn.core import timeutil as tu
 from rudn.core.registry import Feature, MenuButton
-from rudn.core.ui import Ctx, b, nav, short
+from rudn.core.ui import Ctx, b, games_row, nav, short
 
 log = logging.getLogger(__name__)
 
@@ -335,6 +335,7 @@ async def screen_today(ctx: Ctx, notice: str | None = None) -> None:
     for warning in plan.warnings[:3]:
         lines += ["", escape(warning)]
     rows.append([b("🗓 План по дням", "ls:P"), b("📚 Все уроки", "ls:A")])
+    rows.append(games_row())
     rows.append(nav())
     await ctx.show("\n".join(lines), rows)
 

@@ -10,7 +10,7 @@ from typing import Any, Iterable
 
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions, WebAppInfo
 
 from . import config, pending
 from .registry import REGISTRY, RegistryError
@@ -48,6 +48,24 @@ def is_url(url: object) -> bool:
 
 def url_btn(text: str, url: str) -> InlineKeyboardButton:
     return InlineKeyboardButton(text=text, url=url)
+
+
+def app_btn(text: str, url: str) -> InlineKeyboardButton:
+    """Мини-приложение Telegram (web_app) для https, иначе обычная ссылка."""
+    if url.lower().startswith("https://"):
+        return InlineKeyboardButton(text=text, web_app=WebAppInfo(url=url))
+    return url_btn(text, url)
+
+
+# Учебные игры (GitHub Pages) — кнопки в «📚 Уроки»
+GAMES = (
+    ("🦴 Латынь", "https://rusovezov33-code.github.io/latin-anatomy/"),
+    ("🧪 Химия", "https://rusovezov33-code.github.io/chem-organic/"),
+)
+
+
+def games_row() -> list[InlineKeyboardButton]:
+    return [app_btn(t, u) for t, u in GAMES]
 
 
 def with_back(data: str, back: str | None) -> str:
