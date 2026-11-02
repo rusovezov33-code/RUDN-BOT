@@ -131,3 +131,12 @@ def test_latin_card_teacher_note_and_textbook(use_data):
     lit = tuis.literature_for("Латинский язык")
     assert lit["main"][0].startswith("Латинский язык. Учебно-методическое пособие по медицинской терминологии")
     assert lit["links"][0]["url"] == "https://esystem.rudn.ru/mod/resource/view.php?id=1174286"
+
+
+def test_all_teachers_matched():
+    from rudn import tuis
+    assert tuis.teacher_for("Физика") == "Чекмарева Ольга Ивановна"
+    assert tuis.teacher_for("РЯдляИ") == "Мабаева Ирина Юрьевна"
+    assert tuis.teacher_for("Основы военной подготовки") == "Фадеев Юрий Евгеньевич"
+    assert "группа уточняется" in tuis.teacher_for("Медицинская информатика")
+    assert tuis.teacher_for("Химия") == "Егорова Ольга Анатольевна"
