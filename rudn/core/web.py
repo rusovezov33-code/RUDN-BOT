@@ -139,6 +139,52 @@ async def send_file(request: web.Request) -> web.Response:
     )
 
 
+MATH_PDF_DIR = Path(__file__).resolve().parents[2] / "content" / "math" / "pdfs"
+MATH_PDF_ALLOW = {
+    "brs-seminars.pdf",
+    "module1-self-study-logarithms-percent-proportion.pdf",
+    "module2-topic2-vectors-matrices.pdf",
+    "module2-topic3-linear-dependence.pdf",
+    "module2-topics4-6-matrices-determinants.pdf",
+}
+
+
+async def math_pdf_index(_request: web.Request) -> web.Response:
+    """Локальный индекс PDF рабочих материалов Маркашевой (ТУИС 27748)."""
+    lines = [
+        "<!doctype html><meta charset=utf-8><title>Математика PDF</title>",
+        "<h1>Математика — локальные PDF (ТУИС 27748)</h1>",
+        "<p>Только подтверждённые рабочие материалы. Большие учебники (Баврин, Кудрявцев, Лунгу) — по ссылкам ТУИС в карточке предмета.</p>",
+        "<ul>",
+    ]
+    for name in sorted(MATH_PDF_ALLOW):
+        path = MATH_PDF_DIR / name
+        if path.is_file():
+            lines.append(f'<li><a href="/math-pdf/{name}">{name}</a> ({path.stat().st_size} байт)</li>')
+    lines.append("</ul>")
+    lines.append("<p>Лунгу–Письменный: скан без текстового слоя, в репозиторий не копировался; смотри ТУИС resource 1439608.</p>")
+    return web.Response(text="\n".join(lines), content_type="text/html", charset="utf-8")
+
+
+async def math_pdf_file(request: web.Request) -> web.Response:
+    name = request.match_info.get("name", "")
+    if name not in MATH_PDF_ALLOW:
+        return web.Response(status=404, text="Файл не в списке разрешённых.")
+    path = MATH_PDF_DIR / name
+    if not path.is_file():
+        return web.Response(status=404, text="Файл не найден на сервере.")
+    body = path.read_bytes()
+    return web.Response(
+        body=body,
+        headers={
+            "Content-Type": "application/pdf",
+            "Content-Disposition": content_disposition(name),
+            "Cache-Control": "public, max-age=3600",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 def build_app(bot: Any, http: ClientSession) -> web.Application:
     app = web.Application()
     app["bot"] = bot
@@ -147,4 +193,7 @@ def build_app(bot: Any, http: ClientSession) -> web.Application:
     app.router.add_get("/health", health_root)
     app.router.add_get("/dl/{token}", send_file)
     app.router.add_get("/dl/{token}/{name}", send_file)
+    app.router.add_get("/math-pdf/", math_pdf_index)
+    app.router.add_get("/math-pdf", math_pdf_index)
+    app.router.add_get("/math-pdf/{name}", math_pdf_file)
     return app

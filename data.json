@@ -8,7 +8,12 @@
     {
       "title": "📅 Расписание",
       "text": "Динамическое расписание (показывается по текущему дню и неделе).",
-      "links": [{"title": "Официальное расписание РУДН", "url": "https://rudn.ru"}]
+      "links": [
+        {
+          "title": "Официальное расписание РУДН",
+          "url": "https://rudn.ru"
+        }
+      ]
     },
     {
       "title": "📝 Дедлайны и экзамены",
@@ -23,12 +28,47 @@
       "contacts": "Не указано",
       "description": "РЯдляИ / РКИ / РЯВАС",
       "sections": [
-        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
-        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
-        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {
+          "title": "📖 Учебная литература",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🗂 Лекции и конспекты",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🧪 Практики / лабораторные",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "📋 Требования и баллы — БРС",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🎓 Экзамен / зачёт",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🔗 Ссылки — ТУИС, Teams и другие источники",
+          "text": "",
+          "links": [
+            {
+              "title": "ТУИС",
+              "url": "https://esystem.rudn.ru"
+            }
+          ],
+          "files": []
+        }
       ]
     },
     {
@@ -38,12 +78,47 @@
       "contacts": "Не указано",
       "description": "",
       "sections": [
-        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
-        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
-        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {
+          "title": "📖 Учебная литература",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🗂 Лекции и конспекты",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🧪 Практики / лабораторные",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "📋 Требования и баллы — БРС",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🎓 Экзамен / зачёт",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🔗 Ссылки — ТУИС, Teams и другие источники",
+          "text": "",
+          "links": [
+            {
+              "title": "ТУИС",
+              "url": "https://esystem.rudn.ru"
+            }
+          ],
+          "files": []
+        }
       ]
     },
     {
@@ -53,12 +128,47 @@
       "contacts": "Не указано",
       "description": "Включая химию биогенных элементов",
       "sections": [
-        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
-        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
-        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {
+          "title": "📖 Учебная литература",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🗂 Лекции и конспекты",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🧪 Практики / лабораторные",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "📋 Требования и баллы — БРС",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🎓 Экзамен / зачёт",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🔗 Ссылки — ТУИС, Teams и другие источники",
+          "text": "",
+          "links": [
+            {
+              "title": "ТУИС",
+              "url": "https://esystem.rudn.ru"
+            }
+          ],
+          "files": []
+        }
       ]
     },
     {
@@ -68,12 +178,47 @@
       "contacts": "Не указано",
       "description": "",
       "sections": [
-        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
-        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
-        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {
+          "title": "📖 Учебная литература",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🗂 Лекции и конспекты",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🧪 Практики / лабораторные",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "📋 Требования и баллы — БРС",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🎓 Экзамен / зачёт",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🔗 Ссылки — ТУИС, Teams и другие источники",
+          "text": "",
+          "links": [
+            {
+              "title": "ТУИС",
+              "url": "https://esystem.rudn.ru"
+            }
+          ],
+          "files": []
+        }
       ]
     },
     {
@@ -83,12 +228,47 @@
       "contacts": "Не указано",
       "description": "Биоэлементы в медицине",
       "sections": [
-        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
-        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
-        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {
+          "title": "📖 Учебная литература",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🗂 Лекции и конспекты",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🧪 Практики / лабораторные",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "📋 Требования и баллы — БРС",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🎓 Экзамен / зачёт",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🔗 Ссылки — ТУИС, Teams и другие источники",
+          "text": "",
+          "links": [
+            {
+              "title": "ТУИС",
+              "url": "https://esystem.rudn.ru"
+            }
+          ],
+          "files": []
+        }
       ]
     },
     {
@@ -98,12 +278,47 @@
       "contacts": "Не указано",
       "description": "",
       "sections": [
-        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
-        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
-        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {
+          "title": "📖 Учебная литература",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🗂 Лекции и конспекты",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🧪 Практики / лабораторные",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "📋 Требования и баллы — БРС",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🎓 Экзамен / зачёт",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🔗 Ссылки — ТУИС, Teams и другие источники",
+          "text": "",
+          "links": [
+            {
+              "title": "ТУИС",
+              "url": "https://esystem.rudn.ru"
+            }
+          ],
+          "files": []
+        }
       ]
     },
     {
@@ -113,27 +328,122 @@
       "contacts": "Не указано",
       "description": "Ознакомительная практика",
       "sections": [
-        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
-        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
-        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {
+          "title": "📖 Учебная литература",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🗂 Лекции и конспекты",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🧪 Практики / лабораторные",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "📋 Требования и баллы — БРС",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🎓 Экзамен / зачёт",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🔗 Ссылки — ТУИС, Teams и другие источники",
+          "text": "",
+          "links": [
+            {
+              "title": "ТУИС",
+              "url": "https://esystem.rudn.ru"
+            }
+          ],
+          "files": []
+        }
       ]
     },
     {
       "name": "Математика",
-      "teacher": "Не указано",
+      "teacher": "Маркашева Вера Алексеевна (семинары); также Владимир Савчин",
       "semester": 1,
       "contacts": "Не указано",
-      "description": "",
+      "description": "ТУИС семинары id=27748. Полный ход по формулам обязателен (со слов преп.).",
       "sections": [
-        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
-        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
-        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {
+          "title": "📖 Учебная литература",
+          "text": "Основные PDF Маркашевой и учебники — в кнопках ТУИС/локальных ссылках карточки (раздел литературы из tuis.json). Лунгу–Письменный: скан без OCR.",
+          "links": [
+            {
+              "title": "Курс 27748",
+              "url": "https://esystem.rudn.ru/course/view.php?id=27748"
+            },
+            {
+              "title": "Локальный индекс PDF",
+              "url": "/math-pdf/"
+            }
+          ],
+          "files": []
+        },
+        {
+          "title": "🗂 Лекции и конспекты",
+          "text": "Модуль 1 школьное (логи/оси/системы); модуль 2 линейная алгебра (темы 2–6); модуль 3 функции–пределы–производные–интегралы–ДУ. Подробности в уроках 📚.",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🧪 Практики / лабораторные",
+          "text": "Рабочие PDF тем 2–6 и самоподготовка модуль 1 — /math-pdf/ и ТУИС resources. Модуль 3: ориентир Кудрявцев; номеров ДЗ в видимых секциях нет.",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "📋 Требования и баллы — БРС",
+          "text": "Семинарист до 60, лектор до 40. Посещение 0–8 (⚠ текст про 10). Практика модулей по 0–6 (1 попытка). ДЗ до 5. Теория до 10. КР 0–17 (шкала 0/2/4/8/12/14/17). ДЗ 1.1: 1,2,3,4,10,12 + ч.2 №1. Дедлайны не указаны. ⚠ subtotal 43 vs сумма 46.",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🎓 Экзамен / зачёт",
+          "text": "Дифзачёт: зачётная КР из 3 задач (по тренажёру каждого модуля). Со слов преп. — онлайн; ответ без полного решения по формулам не засчитывается. Бот ничего не сдаёт в ТУИС.",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🔗 Ссылки — ТУИС, Teams и другие источники",
+          "text": "",
+          "links": [
+            {
+              "title": "ТУИС семинары 27748",
+              "url": "https://esystem.rudn.ru/course/view.php?id=27748"
+            },
+            {
+              "title": "ДЗ 1.1",
+              "url": "https://esystem.rudn.ru/mod/quiz/view.php?id=1425183"
+            },
+            {
+              "title": "Тренажёр темы 1",
+              "url": "https://esystem.rudn.ru/mod/quiz/view.php?id=1427116"
+            },
+            {
+              "title": "Контрольный темы 1",
+              "url": "https://esystem.rudn.ru/mod/quiz/view.php?id=1433648"
+            },
+            {
+              "title": "Работа над ошибками",
+              "url": "https://esystem.rudn.ru/mod/assign/view.php?id=1434312"
+            }
+          ],
+          "files": []
+        }
       ]
     },
     {
@@ -143,12 +453,47 @@
       "contacts": "Не указано",
       "description": "",
       "sections": [
-        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
-        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
-        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {
+          "title": "📖 Учебная литература",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🗂 Лекции и конспекты",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🧪 Практики / лабораторные",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "📋 Требования и баллы — БРС",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🎓 Экзамен / зачёт",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🔗 Ссылки — ТУИС, Teams и другие источники",
+          "text": "",
+          "links": [
+            {
+              "title": "ТУИС",
+              "url": "https://esystem.rudn.ru"
+            }
+          ],
+          "files": []
+        }
       ]
     },
     {
@@ -158,12 +503,47 @@
       "contacts": "Не указано",
       "description": "Безопасность жизнедеятельности",
       "sections": [
-        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
-        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
-        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {
+          "title": "📖 Учебная литература",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🗂 Лекции и конспекты",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🧪 Практики / лабораторные",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "📋 Требования и баллы — БРС",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🎓 Экзамен / зачёт",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🔗 Ссылки — ТУИС, Teams и другие источники",
+          "text": "",
+          "links": [
+            {
+              "title": "ТУИС",
+              "url": "https://esystem.rudn.ru"
+            }
+          ],
+          "files": []
+        }
       ]
     },
     {
@@ -173,12 +553,47 @@
       "contacts": "Не указано",
       "description": "",
       "sections": [
-        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
-        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
-        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {
+          "title": "📖 Учебная литература",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🗂 Лекции и конспекты",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🧪 Практики / лабораторные",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "📋 Требования и баллы — БРС",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🎓 Экзамен / зачёт",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🔗 Ссылки — ТУИС, Teams и другие источники",
+          "text": "",
+          "links": [
+            {
+              "title": "ТУИС",
+              "url": "https://esystem.rudn.ru"
+            }
+          ],
+          "files": []
+        }
       ]
     },
     {
@@ -188,12 +603,47 @@
       "contacts": "Не указано",
       "description": "",
       "sections": [
-        {"title": "📖 Учебная литература", "text": "", "links": [], "files": []},
-        {"title": "🗂 Лекции и конспекты", "text": "", "links": [], "files": []},
-        {"title": "🧪 Практики / лабораторные", "text": "", "links": [], "files": []},
-        {"title": "📋 Требования и баллы — БРС", "text": "", "links": [], "files": []},
-        {"title": "🎓 Экзамен / зачёт", "text": "", "links": [], "files": []},
-        {"title": "🔗 Ссылки — ТУИС, Teams и другие источники", "text": "", "links": [{"title": "ТУИС", "url": "https://esystem.rudn.ru"}], "files": []}
+        {
+          "title": "📖 Учебная литература",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🗂 Лекции и конспекты",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🧪 Практики / лабораторные",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "📋 Требования и баллы — БРС",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🎓 Экзамен / зачёт",
+          "text": "",
+          "links": [],
+          "files": []
+        },
+        {
+          "title": "🔗 Ссылки — ТУИС, Teams и другие источники",
+          "text": "",
+          "links": [
+            {
+              "title": "ТУИС",
+              "url": "https://esystem.rudn.ru"
+            }
+          ],
+          "files": []
+        }
       ]
     }
   ]

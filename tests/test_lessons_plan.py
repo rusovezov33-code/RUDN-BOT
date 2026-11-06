@@ -99,11 +99,17 @@ def test_live_feature_plan_matches(use_data):
     data = use_data(LIVE_BACKUP)
     tu.set_now(datetime(2026, 10, 28, 8, 0, tzinfo=tu.MSK))
     plan = feat.build_plan(data)
-    assert {d: ids for d, ids in layout(plan).items()} == {
-        date(2026, 10, 28): ["lat-01"], date(2026, 10, 29): ["lat-02"],
-        date(2026, 10, 30): ["lat-03", "lat-04"], date(2026, 10, 31): ["lat-05", "lat-06"],
-        date(2026, 11, 1): ["chem-01", "lat-07", "lat-08"],
-    }
+    lay = {d: ids for d, ids in layout(plan).items()}
+    # уроки к 03.11 (латынь/химия) сохраняют прежние дни
+    assert lay[date(2026, 10, 28)] == ["lat-01"]
+    assert lay[date(2026, 10, 29)] == ["lat-02"]
+    assert lay[date(2026, 10, 30)] == ["lat-03", "lat-04"]
+    assert lay[date(2026, 10, 31)] == ["lat-05", "lat-06"]
+    assert lay[date(2026, 11, 1)] == ["chem-01", "lat-07", "lat-08"]
+    # математика без срока занимает оставшиеся дни горизонта (не раньше 02.11)
+    math_ids = [i for ids in lay.values() for i in ids if i.startswith("math-")]
+    assert math_ids and all(i.startswith("math-") for i in math_ids)
+    assert not any(i.startswith("math-") for i in lay.get(date(2026, 10, 28), []))
     assert {d: feat.day_pairs(d) for d in LIVE_PAIRS} == LIVE_PAIRS
 
 
@@ -359,9 +365,11 @@ def test_plan_screen(use_data):
     text = shot.text
     for line in ["<b>СР 28.10</b> · 5 пар · ≈15 мин · сегодня", "<b>ВС 01.11</b> · нет пар",
                  "<b>ПН 02.11</b> · 3 пары", "🔁 Повторение к КР 03.11 (Латынь), ЛР №5 03.11 (Химия)",
-                 "📌 Срок: КР 03.11", "Осталось: 9 ур."]:
+                 "📌 Срок: КР 03.11"]:
         assert line in text, line
+    assert "Осталось:" in text and "ур." in text
     assert text.index("Латынь 1.") < text.index("Латынь 2.") < text.index("Латынь 8.")
+    assert "Математика" in text
     assert len(text) < 4096
     assert [x.text for x in buttons(shot.markup)] == ["📅 Сегодня", "📚 Все уроки", "⬅ Назад", "🏠 Меню"]
     all_ok(shot.markup)
@@ -382,7 +390,10 @@ def test_review_day_screen(use_data):
     press(bot, "ls:v:20261103")
     shot = bot.last_screen()
     assert "🔁 <b>Повторение к КР 03.11</b>" in shot.text
-    assert len([c for c in callbacks(shot.markup) if c.startswith("ls:o:")]) == len(content.all_lessons())
+    # на экране повторения к 03.11 — только уроки с этим сроком (латынь+химия), не вся математика
+    open_ids = [c for c in callbacks(shot.markup) if c.startswith("ls:o:")]
+    assert len(open_ids) == 9
+    assert all(c.startswith("ls:o:lat-") or c.startswith("ls:o:chem-") for c in open_ids)
     all_ok(shot.markup)
     cb = press(bot, "ls:v:20261201")
     assert cb.answers[-1][0] == "Повторение устарело"

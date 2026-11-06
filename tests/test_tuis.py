@@ -36,6 +36,11 @@ def test_config_integrity():
         total = sum(i["max_total"] for i in c["items"])
         if c["key"] == "phys":
             assert total == 98 and "98" in c["note"]  # расхождение в самом документе
+        elif c["key"] == "math":
+            # БРС PDF: итог 100, но сумма позиций 8+6+6+6+5+5+10+17+40=103;
+            # subtotal до КР в таблице 43 при арифметике 46 (см. note).
+            assert total == 103 and "46" in c["note"] and "43" in c["note"], c["key"]
+            assert c["total_max"] == 100 and c["course_id"] == 27748
         else:
             assert total == c["total_max"] == 100, c["key"]
         for item in c["items"]:
