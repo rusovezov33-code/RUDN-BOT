@@ -192,8 +192,10 @@ def test_tester_cannot_manage_access(use_data):
 
 def test_preallow_config(use_data, monkeypatch, tmp_path):
     use_data(LIVE_BACKUP)
-    assert json.loads((config.CONFIG_DIR / "testers.json").read_text()) == {"ids": [9033219699], "usernames": []}
+    assert json.loads((config.CONFIG_DIR / "testers.json").read_text()) == {"ids": [9033219699, 5968235307], "usernames": ["hekim01"]}
     assert access.role(9033219699) == access.TESTER  # Богдан: только просмотр, не владелец
+    assert access.role(5968235307) == access.TESTER  # Hekim: только просмотр, не владелец
+    assert access.role(555, "hekim01") == access.TESTER
     cfg = tmp_path / "cfg"
     cfg.mkdir()
     (cfg / "testers.json").write_text(json.dumps({"ids": [444], "usernames": ["@Nazli_A"]}))
