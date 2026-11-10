@@ -59,7 +59,7 @@ def app_btn(text: str, url: str) -> InlineKeyboardButton:
 
 # Учебные игры (GitHub Pages) — кнопки в «📚 Уроки»
 GAMES = (
-    ("🦴 Латынь", "https://rusovezov33-code.github.io/latin-anatomy/"),
+    ("🦴 Латынь", "https://rusovezov33-code.github.io/latin-anatomy/?v=11"),
     ("🧪 Химия", "https://rusovezov33-code.github.io/chem-organic/"),
 )
 
