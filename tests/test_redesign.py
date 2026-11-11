@@ -67,15 +67,16 @@ def test_main_screen_body_has_no_emoji(use_data):
 
 def test_main_screen_28_10(use_data):
     use_data(LIVE_BACKUP)
-    tu.set_now(datetime(2026, 10, 28, 11, 0, tzinfo=tu.MSK))
+    # нижняя среда: практика введения в специальность (04.11; 28.10 — верхняя, пары нет)
+    tu.set_now(datetime(2026, 11, 4, 11, 0, tzinfo=tu.MSK))
     bot = FakeBot()
     press(bot, "home")
     text = bot.last_screen().text
-    assert text.startswith("<b>Среда, 28 октября</b> · верхняя неделя\n\n")
+    assert text.startswith("<b>Среда, 4 ноября</b> · нижняя неделя\n\n")
     # как раньше: начало–конец, предмет, корпус и аудитория; ДОТ — «онлайн»
-    assert "\n12:00–14:50  Введение в специальность · АТИ ауд. 251\n" in text
+    assert "\n12:00–13:20  Введение в специальность · АТИ-250\n" in text
     assert "\n15:00–16:20  РКИ · ЕГФ ауд. 359\n16:30–17:50  РКИ · ЕГФ ауд. 359\n" in text
-    assert "\n19:30–20:50  Основы военной подготовки · онлайн\n" in text and "ДОТ" not in text
+    assert "\n19:30–20:50  ОРГ · онлайн\n" in text and "ДОТ" not in text
     assert "\nВзять: халат, шапочка, сменка" in text
 
 
@@ -126,9 +127,9 @@ def test_dresscode_skips_online():
 
 def test_take_line_on_home_and_tomorrow(use_data):
     use_data(LIVE_BACKUP)
-    tu.set_now(datetime(2026, 10, 27, 20, 0, tzinfo=tu.MSK))
+    tu.set_now(datetime(2026, 11, 3, 20, 0, tzinfo=tu.MSK))
     bot = FakeBot()
-    press(bot, "d:tm")  # «Завтра» = 28.10
+    press(bot, "d:tm")  # «Завтра» = 04.11, нижняя неделя, практика
     assert "Взять: халат, шапочка, сменка" in bot.last_screen().text
     tu.set_now(datetime(2026, 10, 29, 9, 0, tzinfo=tu.MSK))  # чт: всё очное без формы, химия — ДОТ
     press(bot, "home")

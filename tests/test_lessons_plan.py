@@ -100,17 +100,18 @@ def test_live_feature_plan_matches(use_data):
     tu.set_now(datetime(2026, 10, 28, 8, 0, tzinfo=tu.MSK))
     plan = feat.build_plan(data)
     lay = {d: ids for d, ids in layout(plan).items()}
-    # уроки к 03.11 (латынь/химия) сохраняют прежние дни
-    assert lay[date(2026, 10, 28)] == ["lat-01"]
-    assert lay[date(2026, 10, 29)] == ["lat-02"]
-    assert lay[date(2026, 10, 30)] == ["lat-03", "lat-04"]
+    # 28.10 теперь 3 пары (практика перенесена на нижнюю среду) — два урока латыни
+    assert lay[date(2026, 10, 28)] == ["lat-01", "lat-02"]
+    assert lay[date(2026, 10, 29)] == ["lat-03"]
+    assert lay[date(2026, 10, 30)] == ["lat-04", "chem-01"]
     assert lay[date(2026, 10, 31)] == ["lat-05", "lat-06"]
-    assert lay[date(2026, 11, 1)] == ["chem-01", "lat-07", "lat-08"]
-    # математика без срока занимает оставшиеся дни горизонта (не раньше 02.11)
+    assert lay[date(2026, 11, 1)] == ["lat-07", "lat-08", "math-01"]
+    # математика без срока занимает оставшиеся дни горизонта (не раньше 01.11)
     math_ids = [i for ids in lay.values() for i in ids if i.startswith("math-")]
     assert math_ids and all(i.startswith("math-") for i in math_ids)
     assert not any(i.startswith("math-") for i in lay.get(date(2026, 10, 28), []))
-    assert {d: feat.day_pairs(d) for d in LIVE_PAIRS} == LIVE_PAIRS
+    expected_pairs = {**LIVE_PAIRS, date(2026, 10, 28): 3}
+    assert {d: feat.day_pairs(d) for d in LIVE_PAIRS} == expected_pairs
 
 
 # ---------------------------------------------------------------- лимиты и нагрузка
@@ -321,12 +322,12 @@ def test_today_screen_evening_27(use_data):
     press(bot, "ls")
     shot = bot.last_screen()
     assert "📅 <b>Сегодня</b> · ВТ 27.10" in shot.text
-    assert "Сегодня уже вечер" in shot.text and "Завтра (СР 28.10, ≈15 мин): Латынь 1" in shot.text
+    assert "Сегодня уже вечер" in shot.text and "Завтра (СР 28.10, ≈29 мин): Латынь 1, Латынь 2" in shot.text
     labels = [x.text for x in buttons(shot.markup)]
     assert "➕ Взять следующий урок: Латынь 1" in labels
     assert {"🗓 План по дням", "📚 Все уроки", "⬅ Назад"} <= set(labels)
     all_ok(shot.markup)
-    assert "📚 Завтра: Латынь — урок 1 (≈15 мин)" in summary_text(feat)
+    assert "📚 Завтра: Латынь — уроки 1, 2 (≈29 мин)" in summary_text(feat)
 
 
 def test_today_screen_28_and_done(use_data):
@@ -335,25 +336,26 @@ def test_today_screen_28_and_done(use_data):
     bot = FakeBot()
     press(bot, "ls")
     shot = bot.last_screen()
-    assert "📅 <b>Сегодня</b> (≈15 мин) · СР 28.10 · 5 пар" in shot.text
+    assert "📅 <b>Сегодня</b> (≈29 мин) · СР 28.10 · 3 пары" in shot.text
     lesson_cbs = [c for c in callbacks(shot.markup) if c.startswith("ls:o:")]
-    assert lesson_cbs == ["ls:o:lat-01"]
+    assert lesson_cbs == ["ls:o:lat-01", "ls:o:lat-02"]
     label = next(x.text for x in buttons(shot.markup) if x.callback_data == "ls:o:lat-01")
     assert label.startswith("🆕 🏛 Латынь 1.") and label.endswith("· ≈15 мин")
     all_ok(shot.markup)
-    assert "📚 Сегодня: Латынь — урок 1 (≈15 мин)" in summary_text(feat)
+    assert "📚 Сегодня: Латынь — уроки 1, 2 (≈29 мин)" in summary_text(feat)
     press(bot, "ls:m:lat-01")
+    press(bot, "ls:m:lat-02")
     press(bot, "ls")
     shot = bot.last_screen()
     assert "✅ <b>На сегодня всё</b>" in shot.text
-    assert "➕ Взять следующий урок: Латынь 2" in [x.text for x in buttons(shot.markup)]
-    assert "ls:o:lat-02" in callbacks(shot.markup)
+    assert "➕ Взять следующий урок: Латынь 3" in [x.text for x in buttons(shot.markup)]
+    assert "ls:o:lat-03" in callbacks(shot.markup)
     all_ok(shot.markup)
     # взял урок заранее → завтра освобождается
-    press(bot, "ls:m:lat-02")
+    press(bot, "ls:m:lat-03")
     plan = feat.build_plan(store.data)
-    assert "lat-02" not in [l.id for d in plan.days.values() for l in d.items]
-    assert [l.id for l in plan.days[date(2026, 10, 29)].items] == ["lat-03"]
+    assert "lat-03" not in [l.id for d in plan.days.values() for l in d.items]
+    assert [l.id for l in plan.days[date(2026, 10, 29)].items] == ["lat-04"]
 
 
 def test_plan_screen(use_data):
@@ -363,7 +365,7 @@ def test_plan_screen(use_data):
     press(bot, "ls:P")
     shot = bot.last_screen()
     text = shot.text
-    for line in ["<b>СР 28.10</b> · 5 пар · ≈15 мин · сегодня", "<b>ВС 01.11</b> · нет пар",
+    for line in ["<b>СР 28.10</b> · 3 пары · ≈29 мин · сегодня", "<b>ВС 01.11</b> · нет пар",
                  "<b>ПН 02.11</b> · 3 пары", "🔁 Повторение к КР 03.11 (Латынь), ЛР №5 03.11 (Химия)",
                  "📌 Срок: КР 03.11"]:
         assert line in text, line

@@ -18,7 +18,8 @@ def test_every_schedule_subject_has_a_card(use_data):
 def test_intro_card_sees_wednesday_practice():
     slots = tu.slots_for_subject("Введение в специальность")
     assert {code for code, _ in slots} == {"ПН", "СР"}
-    assert tu.upcoming_lesson_dates("Введение в специальность", date(2026, 10, 27))[0] == date(2026, 10, 28)
+    # практика по нижним средам; после вторника 03.11 ближайшая — 04.11
+    assert tu.upcoming_lesson_dates("Введение в специальность", date(2026, 11, 3))[0] == date(2026, 11, 4)
 
 
 def test_economics_card_kept_and_appended(use_data):
