@@ -61,6 +61,7 @@ def app_btn(text: str, url: str) -> InlineKeyboardButton:
 GAMES = (
     ("🦴 Латынь", "https://rusovezov33-code.github.io/latin-anatomy/?v=12"),
     ("🧪 Химия", "https://rusovezov33-code.github.io/chem-organic/"),
+    ("⚛️ Элементы", "https://rusovezov33-code.github.io/elem-colloquium/?v=1"),
 )
 
 
