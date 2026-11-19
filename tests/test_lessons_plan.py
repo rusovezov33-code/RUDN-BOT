@@ -110,7 +110,7 @@ def test_live_feature_plan_matches(use_data):
     math_ids = [i for ids in lay.values() for i in ids if i.startswith("math-")]
     assert math_ids and all(i.startswith("math-") for i in math_ids)
     assert not any(i.startswith("math-") for i in lay.get(date(2026, 10, 28), []))
-    expected_pairs = {**LIVE_PAIRS, date(2026, 10, 28): 3}
+    expected_pairs = {**LIVE_PAIRS, date(2026, 10, 28): 3, date(2026, 10, 29): 6, date(2026, 10, 31): 3}
     assert {d: feat.day_pairs(d) for d in LIVE_PAIRS} == expected_pairs
 
 

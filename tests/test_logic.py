@@ -74,3 +74,23 @@ def test_lesson_state():
     assert tu.lesson_state("09:00 – 10:20", moment) == "now"
     assert tu.lesson_state("10:30 – 11:50", moment) == "future"
     assert tu.lesson_state("08:00 – 09:20", moment) == "past"
+
+
+def test_economics_is_every_thursday_in_person():
+    cfg = config.schedule()
+    thu = [(l.time, l.subject, l.weeks) for l in cfg.days["ЧТ"]]
+    assert ("16:30–17:50", "Экономика", "both") in thu
+    assert all(l.subject != "Экономика" for l in cfg.days["СБ"])
+    # 19.11.2026 — четверг нижней недели; 29.10 — четверг верхней
+    for day in (date(2026, 11, 19), date(2026, 10, 29)):
+        econ = [l for l in tu.lessons_for(day) if l.subject == "Экономика"]
+        assert len(econ) == 1 and econ[0].time == "16:30–17:50"
+        assert "219" in econ[0].place and "213" in econ[0].place
+    assert all(l.subject != "Экономика" for l in tu.lessons_for(date(2026, 10, 31)))
+    from rudn.features.schedule import day_lines
+    text = "\n".join(
+        day_lines({"homework": []}, date(2026, 11, 19), datetime(2026, 11, 19, 12, 0, tzinfo=tu.MSK), detailed=True)
+    )
+    assert "Экономика" in text and "16:30–17:50" in text
+    assert "219" in text and "213" in text
+

@@ -37,7 +37,7 @@ def test_live_backup_exact(use_data):
 def test_legacy_synthetic(use_data):
     data = use_data(LEGACY)
     names = [s["name"] for s in data["subjects"]]
-    assert "Экономика" in names  # есть в официальном расписании (СБ, верхняя)
+    assert "Экономика" in names  # есть в официальном расписании (четверг, каждую неделю)
     assert any("БЖД" in n for n in names)
     ids = [item["id"] for item in data["homework"]]
     assert len(set(ids)) == len(ids) == 4

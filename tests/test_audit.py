@@ -25,7 +25,7 @@ def test_intro_card_sees_wednesday_practice():
 def test_economics_card_kept_and_appended(use_data):
     data = use_data(LIVE_BACKUP)
     assert data["subjects"][-1]["name"] == "Экономика"
-    assert tu.upcoming_lesson_dates("Экономика", date(2026, 10, 27))[0] == date(2026, 10, 31)
+    assert tu.upcoming_lesson_dates("Экономика", date(2026, 10, 27))[0] == date(2026, 10, 29)
 
 
 def test_nearest_skips_finished_lessons_today():
