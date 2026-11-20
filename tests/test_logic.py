@@ -94,3 +94,23 @@ def test_economics_is_every_thursday_in_person():
     assert "Экономика" in text and "16:30–17:50" in text
     assert "219" in text and "213" in text
 
+def test_math_seminar_friday_lower_week_room_147():
+    cfg = config.schedule()
+    fri = [(l.time, l.subject, l.place, l.weeks) for l in cfg.days["ПТ"]]
+    assert ("13:30–14:50", "Математика", "сем ЕГФ ауд. 147", "lower") in fri
+    # лекция по математике остаётся дистанционной
+    thu = [(l.time, l.subject, l.place, l.weeks) for l in cfg.days["ЧТ"]]
+    assert ("19:30–20:50", "Математика", "лек (ДОТ)", "upper") in thu
+    # 20.11.2026 и 04.12.2026 — пятницы нижней недели; 27.11 — верхней, семинара нет
+    for day in (date(2026, 11, 20), date(2026, 12, 4)):
+        math = [l for l in tu.lessons_for(day) if l.subject == "Математика"]
+        assert len(math) == 1 and math[0].time == "13:30–14:50"
+        assert math[0].place == "сем ЕГФ ауд. 147"
+    assert all(l.subject != "Математика" for l in tu.lessons_for(date(2026, 11, 27)))
+    from rudn.features.schedule import day_lines
+    text = "\n".join(
+        day_lines({"homework": []}, date(2026, 11, 20), datetime(2026, 11, 20, 12, 0, tzinfo=tu.MSK), detailed=True)
+    )
+    assert "Математика" in text and "13:30–14:50" in text
+    assert "147" in text and "404" not in text
+
